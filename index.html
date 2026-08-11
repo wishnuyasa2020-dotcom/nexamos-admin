@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexa OS — Command Centre</title>
+  <meta name="description" content="Nexa OS Admin Command Centre — monitoring dan kontrol semua tenant.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Variables ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #070c14;
+      --bg-2:        #0d1525;
+      --bg-3:        #111e30;
+      --bg-4:        #162236;
+      --border:      rgba(255,255,255,0.06);
+      --border-h:    rgba(255,255,255,0.12);
+      --green:       #00d68f;
+      --green-dim:   rgba(0,214,143,0.10);
+      --green-glow:  rgba(0,214,143,0.25);
+      --blue:        #4d9fff;
+      --blue-dim:    rgba(77,159,255,0.10);
+      --purple:      #a78bfa;
+      --purple-dim:  rgba(167,139,250,0.10);
+      --amber:       #fbbf24;
+      --amber-dim:   rgba(251,191,36,0.10);
+      --red:         #f87171;
+      --red-dim:     rgba(248,113,113,0.10);
+      --cyan:        #22d3ee;
+      --cyan-dim:    rgba(34,211,238,0.10);
+      --text:        #e2e8f0;
+      --text-2:      #94a3b8;
+      --text-3:      #475569;
+      --sidebar-w:   240px;
+      --header-h:    64px;
+      --radius:      12px;
+      --radius-sm:   8px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Login Overlay ──────────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+      transition: opacity .4s ease;
+    }
+    #login-overlay.hide {
+      opacity: 0; pointer-events: none;
+    }
+    .login-box {
+      background: var(--bg-2);
+      border: 1px solid var(--border-h);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 0 60px rgba(0,214,143,0.08), var(--shadow);
+      text-align: center;
+    }
+    .login-logo {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 30px var(--green-glow);
+    }
+    .login-box h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    .login-box p  { color: var(--text-2); font-size: .875rem; margin-bottom: 32px; }
+    .login-input {
+      width: 100%;
+      background: var(--bg-3);
+      border: 1px solid var(--border-h);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .9rem;
+      padding: 12px 16px;
+      outline: none;
+      letter-spacing: 0.1em;
+      transition: border-color .2s;
+      margin-bottom: 16px;
+    }
+    .login-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, var(--green), #00b377);
+      border: none; border-radius: var(--radius-sm);
+      color: #000; font-family: 'Inter', sans-serif;
+      font-size: .9rem; font-weight: 700;
+      padding: 13px; cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      letter-spacing: .02em;
+    }
+    .btn-login:hover   { opacity: .9; }
+    .btn-login:active  { transform: scale(.98); }
+    .btn-login:disabled { opacity: .5; cursor: not-allowed; }
+    .login-error {
+      color: var(--red); font-size: .8rem; margin-top: 12px;
+      min-height: 20px;
+    }
+    .login-powered {
+      margin-top: 32px; color: var(--text-3); font-size: .75rem;
+    }
+    .login-powered span { color: var(--green); }
+
+    /* ── App Layout ─────────────────────────────────────────── */
+    #app { display: none; min-height: 100vh; }
+    #app.visible { display: flex; }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform .3s ease;
+    }
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 16px var(--green-glow);
+      flex-shrink: 0;
+    }
+    .logo-text { line-height: 1.2; }
+    .logo-name { font-weight: 800; font-size: .95rem; letter-spacing: -.01em; }
+    .logo-sub  { font-size: .7rem; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; }
+
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-group-label {
+      font-size: .65rem; color: var(--text-3); font-weight: 600;
+      text-transform: uppercase; letter-spacing: .1em;
+      padding: 8px 10px 4px; margin-top: 8px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer; color: var(--text-2);
+      font-size: .875rem; font-weight: 500;
+      transition: all .15s ease;
+      user-select: none;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--bg-3); color: var(--text); }
+    .nav-item.active {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .nav-item .nav-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      font-size: .72rem; color: var(--text-3);
+    }
+    .sidebar-footer .version { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Main Content ───────────────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      height: var(--header-h);
+      background: rgba(7,12,20,0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .breadcrumb { font-size: .8rem; color: var(--text-3); }
+    .breadcrumb span { color: var(--text-2); }
+    .page-title { font-size: 1.05rem; font-weight: 700; }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .header-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .78rem; color: var(--text-2);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-3);
+    }
+    .status-dot.ok     { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+    .status-dot.error  { background: var(--red); }
+    @keyframes pulse-dot {
+      0%,100% { box-shadow: 0 0 4px var(--green); }
+      50%      { box-shadow: 0 0 10px var(--green); }
+    }
+    .btn-logout {
+      background: var(--bg-3);
+      border: 1px solid var(--border-h);
+      border-radius: var(--radius-sm);
+      color: var(--text-2); font-family: 'Inter', sans-serif;
+      font-size: .78rem; padding: 6px 12px;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-logout:hover { color: var(--red); border-color: var(--red-dim); }
+
+    /* ── Content Area ───────────────────────────────────────── */
+    .content { flex: 1; padding: 28px; overflow-y: auto; }
+    .section { display: none; animation: fadeSlide .25s ease; }
+    .section.active { display: block; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Section Header ─────────────────────────────────────── */
+    .section-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+    }
+    .section-title    { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
+    .section-subtitle { font-size: .85rem; color: var(--text-2); margin-top: 4px; }
+    .section-actions  { display: flex; gap: 8px; align-items: center; }
+
+    .btn-refresh {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg-3); border: 1px solid var(--border-h);
+      border-radius: var(--radius-sm); color: var(--text-2);
+      font-family: 'Inter', sans-serif; font-size: .8rem;
+      padding: 7px 14px; cursor: pointer; transition: all .15s;
+    }
+    .btn-refresh:hover { color: var(--text); border-color: var(--green-dim); }
+    .btn-refresh.spinning .refresh-icon { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Stat Cards ─────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color .2s, transform .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: transparent;
+      transition: background .2s;
+    }
+    .stat-card:hover { border-color: var(--border-h); transform: translateY(-2px); }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.blue::before  { background: var(--blue); }
+    .stat-card.purple::before { background: var(--purple); }
+    .stat-card.amber::before  { background: var(--amber); }
+    .stat-card.cyan::before   { background: var(--cyan); }
+    .stat-card.red::before    { background: var(--red); }
+
+    .stat-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .stat-label { font-size: .75rem; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+    .stat-icon  { font-size: 1.2rem; }
+    .stat-value { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; margin-bottom: 4px; }
+    .stat-value.loading { background: var(--bg-3); border-radius: 4px; height: 2rem; width: 60%; animation: shimmer 1.2s infinite; }
+    .stat-sub { font-size: .75rem; color: var(--text-3); }
+    @keyframes shimmer {
+      0%,100% { opacity: .5; }
+      50%      { opacity: 1; }
+    }
+
+    /* ── Grid Layouts ───────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 1200px) { .grid-4 { grid-template-columns: repeat(2,1fr); } .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 800px)  { .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr; } }
+
+    /* ── Panel Card ─────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title { font-size: .9rem; font-weight: 700; }
+    .panel-subtitle { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
+    .panel-body { padding: 20px; }
+    .panel-body.no-pad { padding: 0; }
+
+    /* ── Tenant Card ─────────────────────────────────────────── */
+    .tenant-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      position: relative; overflow: hidden;
+      transition: border-color .2s;
+    }
+    .tenant-card:hover { border-color: var(--border-h); }
+    .tenant-card-bg {
+      position: absolute; top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      filter: blur(40px);
+    }
+    .tenant-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 20px; position: relative;
+    }
+    .tenant-avatar {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #0E7C66, #10b981);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .tenant-info { margin-left: 14px; flex: 1; }
+    .tenant-name  { font-size: 1.1rem; font-weight: 800; }
+    .tenant-id    { font-size: .72rem; color: var(--text-3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    }
+    .badge.pro      { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple); }
+    .badge.basic    { background: var(--blue-dim);   color: var(--blue);   border: 1px solid var(--blue); }
+    .badge.free     { background: var(--bg-4);        color: var(--text-3); border: 1px solid var(--border-h); }
+    .badge.premium  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid var(--amber); }
+    .badge.active   { background: var(--green-dim);  color: var(--green);  border: 1px solid var(--green); }
+    .badge.error    { background: var(--red-dim);    color: var(--red);    border: 1px solid var(--red); }
+    .badge.info     { background: var(--blue-dim);   color: var(--blue);   border: 1px solid var(--blue); }
+    .badge.warn     { background: var(--amber-dim);  color: var(--amber);  border: 1px solid var(--amber); }
+
+    .tenant-metrics {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; position: relative;
+    }
+    .tenant-metric { text-align: center; }
+    .tm-value { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .tm-label { font-size: .7rem; color: var(--text-3); margin-top: 4px; }
+
+    .cro-bar-wrap { margin-top: 16px; position: relative; }
+    .cro-bar-label { display: flex; justify-content: space-between; font-size: .75rem; color: var(--text-2); margin-bottom: 6px; }
+    .cro-bar-track { height: 6px; background: var(--bg-4); border-radius: 3px; overflow: hidden; }
+    .cro-bar-fill  { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width .8s ease; }
+
+    /* ── Feature Grid ───────────────────────────────────────── */
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px; margin-top: 16px;
+    }
+    .feature-item {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: border-color .2s;
+    }
+    .feature-item:hover { border-color: var(--border-h); }
+    .feature-left { flex: 1; }
+    .feature-name { font-size: .83rem; font-weight: 600; }
+    .feature-desc { font-size: .72rem; color: var(--text-3); margin-top: 2px; }
+    .toggle {
+      width: 40px; height: 22px;
+      background: var(--bg-4); border-radius: 11px;
+      position: relative; flex-shrink: 0; margin-left: 12px;
+      cursor: default;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--text-3); transition: transform .2s, background .2s;
+    }
+    .toggle.on { background: var(--green-dim); }
+    .toggle.on::after { transform: translateX(18px); background: var(--green); }
+
+    /* ── Table ──────────────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-size: .72rem; color: var(--text-3);
+      font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+      padding: 10px 16px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 12px 16px; font-size: .83rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr { transition: background .1s; }
+    .data-table tbody tr:hover { background: var(--bg-3); }
+
+    /* ── Activity Feed ──────────────────────────────────────── */
+    .activity-feed { display: flex; flex-direction: column; gap: 0; }
+    .activity-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background .1s;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-item:hover { background: var(--bg-3); }
+    .activity-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--bg-4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .activity-body { flex: 1; min-width: 0; }
+    .activity-title { font-size: .83rem; font-weight: 600; margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-desc  { font-size: .75rem; color: var(--text-3); }
+    .activity-meta  { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .activity-user  { font-size: .7rem; color: var(--text-3); }
+    .activity-time  { font-size: .7rem; color: var(--text-3); font-family: 'JetBrains Mono', monospace; margin-left: auto; flex-shrink: 0; }
+
+    /* ── Health Items ───────────────────────────────────────── */
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .health-item {
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px;
+    }
+    .health-item-label { font-size: .7rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .health-item-value { font-size: 1.1rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .health-item-value.ok     { color: var(--green); }
+    .health-item-value.error  { color: var(--red); }
+    .health-item-value.number { color: var(--blue); }
+
+    /* ── Chart container ─────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 48px 24px; color: var(--text-3);
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .875rem; }
+
+    /* ── Period badge ─────────────────────────────────────────── */
+    .period-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-4); border: 1px solid var(--border-h);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: .78rem; color: var(--text-2);
+    }
+    .period-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    /* ── Scrollbar ───────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+    /* ── Loading skeleton ────────────────────────────────────── */
+    .skel { background: var(--bg-3); border-radius: 4px; animation: shimmer 1.2s infinite; }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN OVERLAY ──────────────────────────────────────── -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">⚡</div>
+    <h1>Nexa OS</h1>
+    <p>Command Centre — Akses terbatas untuk Nexa Admin</p>
+    <input
+      type="password"
+      class="login-input"
+      id="admin-key-input"
+      placeholder="Masukkan Admin Key"
+      autocomplete="current-password"
+    >
+    <button class="btn-login" id="login-btn" onclick="doAdminLogin()">
+      Masuk ke Command Centre
+    </button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-powered">Powered by <span>Nexa OS</span> v1.0.0-alpha</div>
+  </div>
+</div>
+
+<!-- ── APP ─────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">
+        <div class="logo-name">Nexa OS</div>
+        <div class="logo-sub">Command Centre</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">Monitor</div>
+      <div class="nav-item active" data-section="overview" onclick="switchSection('overview', this)">
+        <span class="nav-icon">📊</span> Overview
+      </div>
+      <div class="nav-item" data-section="tenants" onclick="switchSection('tenants', this)">
+        <span class="nav-icon">🏢</span> Tenants
+      </div>
+      <div class="nav-item" data-section="usage" onclick="switchSection('usage', this)">
+        <span class="nav-icon">📈</span> Usage & Analytics
+      </div>
+
+      <div class="nav-group-label">Kontrol</div>
+      <div class="nav-item" data-section="team" onclick="switchSection('team', this)">
+        <span class="nav-icon">👥</span> Team & Users
+      </div>
+      <div class="nav-item" data-section="features" onclick="switchSection('features', this)">
+        <span class="nav-icon">🔧</span> Feature Control
+      </div>
+
+      <div class="nav-group-label">Sistem</div>
+      <div class="nav-item" data-section="health" onclick="switchSection('health', this)">
+        <span class="nav-icon">❤️</span> System Health
+      </div>
+      <div class="nav-item" data-section="activity" onclick="switchSection('activity', this)">
+        <span class="nav-icon">📋</span> Activity Log
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="version">v1.0.0-alpha</div>
+      <div style="margin-top:4px;color:var(--text-3);">Nexa OS — 2026</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div>
+          <div class="page-title" id="header-title">Overview</div>
+          <div class="breadcrumb">Nexa OS / <span id="header-breadcrumb">Overview</span></div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-status">
+          <div class="status-dot" id="system-dot"></div>
+          <span id="system-status-text">Checking...</span>
+        </div>
+        <button class="btn-logout" onclick="doLogout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ── OVERVIEW ──────────────────────────────────────── -->
+      <section class="section active" id="section-overview">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Overview</div>
+            <div class="section-subtitle">Ringkasan sistem Nexa OS secara keseluruhan</div>
+          </div>
+          <div class="section-actions">
+            <div class="period-pill" id="overview-period">
+              <div class="dot"></div>
+              <span>Loading...</span>
+            </div>
+            <button class="btn-refresh" id="btn-refresh-overview" onclick="loadOverview(true)">
+              <span class="refresh-icon">↻</span> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats row 1 -->
+        <div class="stats-grid" id="overview-stats-1">
+          <div class="stat-card green">
+            <div class="stat-top"><div class="stat-label">Tenant Aktif</div><div class="stat-icon">🏢</div></div>
+            <div class="stat-value" id="ov-tenants">—</div>
+            <div class="stat-sub">Platform multi-tenant</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-top"><div class="stat-label">Total User</div><div class="stat-icon">👥</div></div>
+            <div class="stat-value" id="ov-users">—</div>
+            <div class="stat-sub" id="ov-active-users">— aktif</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-top"><div class="stat-label">CRO Aktif</div><div class="stat-icon">🎯</div></div>
+            <div class="stat-value" id="ov-cro">—</div>
+            <div class="stat-sub">Customer Relation Officer</div>
+          </div>
+          <div class="stat-card cyan">
+            <div class="stat-top"><div class="stat-label">Total Siswa</div><div class="stat-icon">🎓</div></div>
+            <div class="stat-value" id="ov-siswa">—</div>
+            <div class="stat-sub" id="ov-siswa-aktif">— di periode aktif</div>
+          </div>
+        </div>
+
+        <!-- Stats row 2 -->
+        <div class="stats-grid" id="overview-stats-2">
+          <div class="stat-card blue">
+            <div class="stat-top"><div class="stat-label">Total Sekolah</div><div class="stat-icon">🏫</div></div>
+            <div class="stat-value" id="ov-sekolah">—</div>
+            <div class="stat-sub">Master sekolah terdaftar</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-top"><div class="stat-label">Chat 24 Jam</div><div class="stat-icon">💬</div></div>
+            <div class="stat-value" id="ov-messages">—</div>
+            <div class="stat-sub" id="ov-conv">— konversasi aktif</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-top"><div class="stat-label">Broadcast/Bulan</div><div class="stat-icon">📢</div></div>
+            <div class="stat-value" id="ov-broadcast">—</div>
+            <div class="stat-sub" id="ov-bcast-total">— pesan terkirim all time</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-top"><div class="stat-label">Home Visit</div><div class="stat-icon">🏠</div></div>
+            <div class="stat-value" id="ov-hv">—</div>
+            <div class="stat-sub">Di periode aktif</div>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">⚡ Aktivitas Terkini</div>
+              <div class="panel-subtitle">24 jam terakhir</div>
+            </div>
+          </div>
+          <div class="panel-body no-pad">
+            <div class="activity-feed" id="overview-activity">
+              <div class="empty-state"><div class="empty-icon">⏳</div><p>Memuat aktivitas...</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TENANTS ────────────────────────────────────────── -->
+      <section class="section" id="section-tenants">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Tenants</div>
+            <div class="section-subtitle">Daftar klien aktif di platform Nexa OS</div>
+          </div>
+          <button class="btn-refresh" onclick="loadTenant(true)">
+            <span class="refresh-icon">↻</span> Refresh
+          </button>
+        </div>
+
+        <div id="tenant-cards">
+          <div class="empty-state"><div class="empty-icon">⏳</div><p>Memuat data tenant...</p></div>
+        </div>
+      </section>
+
+      <!-- ── USAGE ──────────────────────────────────────────── -->
+      <section class="section" id="section-usage">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Usage & Analytics</div>
+            <div class="section-subtitle">Data penggunaan sistem per periode</div>
+          </div>
+          <button class="btn-refresh" onclick="loadUsage(true)">
+            <span class="refresh-icon">↻</span> Refresh
+          </button>
+        </div>
+
+        <div class="grid-2" id="usage-charts">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">🎓 Siswa per Status</div></div>
+            <div class="panel-body"><div class="chart-wrap"><canvas id="chart-siswa"></canvas></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">📢 Broadcast Performance</div></div>
+            <div class="panel-body"><div class="chart-wrap"><canvas id="chart-broadcast"></canvas></div></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">🏫 Sekolah per Status</div></div>
+            <div class="panel-body"><div class="chart-wrap"><canvas id="chart-sekolah"></canvas></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">💬 Volume Chat 7 Hari</div></div>
+            <div class="panel-body"><div class="chart-wrap"><canvas id="chart-chat"></canvas></div></div>
+          </div>
+        </div>
+
+        <!-- CRO Activity -->
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🎯 Aktivitas CRO (Periode Aktif)</div></div>
+          <div class="panel-body no-pad">
+            <table class="data-table" id="cro-activity-table">
+              <thead><tr><th>#</th><th>CRO</th><th>Jumlah Siswa Dihandle</th><th>Proporsi</th></tr></thead>
+              <tbody id="cro-activity-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TEAM ───────────────────────────────────────────── -->
+      <section class="section" id="section-team">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Team & Users</div>
+            <div class="section-subtitle">Seluruh user terdaftar di sistem</div>
+          </div>
+          <button class="btn-refresh" onclick="loadTeam(true)">
+            <span class="refresh-icon">↻</span> Refresh
+          </button>
+        </div>
+        <div class="panel">
+          <div class="panel-body no-pad">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama</th><th>Username</th><th>Role</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="team-tbody">
+                <tr><td colspan="4"><div class="empty-state" style="padding:24px"><p>Memuat data...</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── FEATURE CONTROL ────────────────────────────────── -->
+      <section class="section" id="section-features">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Feature Control</div>
+            <div class="section-subtitle">Status fitur aktif untuk setiap tenant</div>
+          </div>
+          <div class="badge pro" style="font-size:.75rem;padding:5px 14px;">Derma Indonesia — Tier PRO</div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">🏢 Derma Indonesia</div>
+              <div class="panel-subtitle">Tenant ID: derma-indonesia • Tier: PRO</div>
+            </div>
+            <span class="badge active">ACTIVE</span>
+          </div>
+          <div class="panel-body">
+            <div style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:20px;font-size:.8rem;color:var(--amber);">
+              ⚠️ <strong>Read-only:</strong> Feature toggle akan aktif setelah tabel <code>plan_features</code> tersedia di database (Fase 3 Nexa OS).
+            </div>
+            <div class="feature-grid" id="feature-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SYSTEM HEALTH ──────────────────────────────────── -->
+      <section class="section" id="section-health">
+        <div class="section-header">
+          <div>
+            <div class="section-title">System Health</div>
+            <div class="section-subtitle">Status database, GAS runtime, dan integrasi</div>
+          </div>
+          <button class="btn-refresh" id="btn-refresh-health" onclick="loadHealth(true)">
+            <span class="refresh-icon">↻</span> Refresh
+          </button>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:24px;">
+          <div class="panel">
+            <div class="panel-body" style="text-align:center;padding:24px;">
+              <div style="font-size:2.5rem;margin-bottom:8px;" id="db-status-icon">⏳</div>
+              <div style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">MySQL Database</div>
+              <div style="font-weight:700;font-size:1rem;" id="db-status-text">Checking...</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-body" style="text-align:center;padding:24px;">
+              <div style="font-size:2.5rem;margin-bottom:8px;">✅</div>
+              <div style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">GAS Runtime</div>
+              <div style="font-weight:700;font-size:1rem;color:var(--green);">Online</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-body" style="text-align:center;padding:24px;">
+              <div style="font-size:2.5rem;margin-bottom:8px;">📱</div>
+              <div style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">WhatsApp API</div>
+              <div style="font-weight:700;font-size:1rem;color:var(--green);" id="wa-status-text">Connected</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">📦 Jumlah Record per Tabel</div></div>
+          <div class="panel-body">
+            <div class="health-grid" id="health-table-counts">
+              <div class="empty-state"><p>Memuat...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel-header"><div class="panel-title">🕐 Timestamp Terakhir</div></div>
+          <div class="panel-body">
+            <div class="health-grid">
+              <div class="health-item">
+                <div class="health-item-label">Pesan Masuk Terakhir</div>
+                <div class="health-item-value number" id="health-last-msg" style="font-size:.8rem;">—</div>
+              </div>
+              <div class="health-item">
+                <div class="health-item-label">Broadcast Terakhir</div>
+                <div class="health-item-value number" id="health-last-bcast" style="font-size:.8rem;">—</div>
+              </div>
+              <div class="health-item">
+                <div class="health-item-label">Health Check</div>
+                <div class="health-item-value number" id="health-checked-at" style="font-size:.8rem;">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ACTIVITY LOG ─────────────────────────────────────── -->
+      <section class="section" id="section-activity">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Activity Log</div>
+            <div class="section-subtitle">Aktivitas sistem 24 jam terakhir</div>
+          </div>
+          <button class="btn-refresh" onclick="loadActivity(true)">
+            <span class="refresh-icon">↻</span> Refresh
+          </button>
+        </div>
+        <div class="panel">
+          <div class="panel-body no-pad">
+            <div class="activity-feed" id="activity-log-feed">
+              <div class="empty-state"><div class="empty-icon">⏳</div><p>Memuat aktivitas...</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /app -->
+
+<script src="js/config.js"></script>
+<script>
+/* ============================================================
+   NEXA OS — Command Centre App
+   ============================================================ */
+
+// ── State ────────────────────────────────────────────────────
+const STATE = {
+  adminKey: '',
+  currentSection: 'overview',
+  data: {},
+  charts: {},
+  loaded: {}
+};
+
+// ── Helpers ──────────────────────────────────────────────────
+function fmt(n) {
+  if (n == null || n === '' || n === '—') return '—';
+  return Number(n).toLocaleString('id-ID');
+}
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) +
+           ' ' + d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  } catch(e) { return ts; }
+}
+function timeAgo(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60000)       return 'Baru saja';
+    if (diff < 3600000)     return Math.floor(diff/60000) + ' mnt lalu';
+    if (diff < 86400000)    return Math.floor(diff/3600000) + ' jam lalu';
+    return Math.floor(diff/86400000) + ' hari lalu';
+  } catch(e) { return ts || '—'; }
+}
+function roleColor(role) {
+  if (!role) return 'info';
+  const r = role.toLowerCase();
+  if (r === 'admin')   return 'red';
+  if (r === 'manager') return 'amber';
+  if (r === 'cro')     return 'blue';
+  return '';
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function apiCall(cmd) {
+  const url = new URL(NEXA_CONFIG.GAS_API_URL);
+  url.searchParams.set('action', 'nexaControl');
+  url.searchParams.set('key', STATE.adminKey);
+  url.searchParams.set('cmd', cmd);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NEXA_CONFIG.FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      signal: controller.signal
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'API error');
+    return json.data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Auth ─────────────────────────────────────────────────────
+async function doAdminLogin() {
+  const keyInput = document.getElementById('admin-key-input');
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+  const key = keyInput.value.trim();
+  if (!key) { errEl.textContent = 'Admin key tidak boleh kosong.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifikasi...';
+  errEl.textContent = '';
+
+  try {
+    STATE.adminKey = key;
+    const data = await apiCall('ping');
+    if (!data || !data.pong) throw new Error('Response tidak valid');
+
+    // Save session
+    sessionStorage.setItem(NEXA_CONFIG.SESSION_KEY, key);
+
+    // Show app
+    document.getElementById('login-overlay').classList.add('hide');
+    document.getElementById('app').classList.add('visible');
+    setTimeout(() => { document.getElementById('login-overlay').style.display = 'none'; }, 500);
+
+    // Load initial data
+    initApp();
+  } catch(e) {
+    STATE.adminKey = '';
+    errEl.textContent = e.message.includes('abort')
+      ? 'Timeout — periksa koneksi atau URL GAS.'
+      : 'Login gagal: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Masuk ke Command Centre';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem(NEXA_CONFIG.SESSION_KEY);
+  location.reload();
+}
+
+// ── Navigation ────────────────────────────────────────────────
+const SECTION_TITLES = {
+  overview: 'Overview', tenants: 'Tenants',
+  usage: 'Usage & Analytics', team: 'Team & Users',
+  features: 'Feature Control', health: 'System Health',
+  activity: 'Activity Log'
+};
+
+function switchSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  el.classList.add('active');
+  STATE.currentSection = name;
+  document.getElementById('header-title').textContent = SECTION_TITLES[name] || name;
+  document.getElementById('header-breadcrumb').textContent = SECTION_TITLES[name] || name;
+  loadSectionData(name);
+}
+
+function loadSectionData(name) {
+  if (STATE.loaded[name]) return; // already loaded
+  switch(name) {
+    case 'overview': loadOverview(); break;
+    case 'tenants':  loadTenant();   break;
+    case 'usage':    loadUsage();    break;
+    case 'team':     loadTeam();     break;
+    case 'health':   loadHealth();   break;
+    case 'activity': loadActivity(); break;
+  }
+}
+
+// ── System Status Indicator ───────────────────────────────────
+function setSystemStatus(ok, text) {
+  const dot  = document.getElementById('system-dot');
+  const txt  = document.getElementById('system-status-text');
+  dot.className = 'status-dot ' + (ok ? 'ok' : 'error');
+  txt.textContent = text;
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────
+async function loadOverview(force) {
+  if (!force && STATE.loaded.overview) return;
+  const btn = document.getElementById('btn-refresh-overview');
+  btn && btn.classList.add('spinning');
+
+  try {
+    const d = await apiCall('overview');
+    STATE.data.overview = d;
+    STATE.loaded.overview = true;
+
+    // Period pill
+    document.getElementById('overview-period').innerHTML =
+      '<div class="dot"></div><span>' + (d.activePeriod || '-') + '</span>';
+
+    // Stats
+    document.getElementById('ov-tenants').textContent   = fmt(d.tenants);
+    document.getElementById('ov-users').textContent     = fmt(d.totalUsers);
+    document.getElementById('ov-active-users').textContent = fmt(d.activeUsers) + ' aktif';
+    document.getElementById('ov-cro').textContent       = fmt(d.activeCro);
+    document.getElementById('ov-siswa').textContent     = fmt(d.totalSiswa);
+    document.getElementById('ov-siswa-aktif').textContent = fmt(d.siswaAktifPeriode) + ' di periode aktif';
+    document.getElementById('ov-sekolah').textContent   = fmt(d.totalSekolah);
+    document.getElementById('ov-messages').textContent  = fmt(d.messagesLast24h);
+    document.getElementById('ov-conv').textContent      = fmt(d.activeConversations) + ' konversasi aktif';
+    document.getElementById('ov-broadcast').textContent = fmt(d.broadcastsMonth);
+    document.getElementById('ov-bcast-total').textContent = fmt(d.totalBroadcastSuccess) + ' pesan terkirim all time';
+    document.getElementById('ov-hv').textContent        = fmt(d.homeVisitsAktif);
+
+    setSystemStatus(true, 'Sistem Normal');
+  } catch(e) {
+    setSystemStatus(false, 'Error: ' + e.message);
+  } finally {
+    btn && btn.classList.remove('spinning');
+  }
+
+  // Load activity for overview
+  loadActivity(force, 'overview-activity');
+}
+
+// ── TENANT ────────────────────────────────────────────────────
+async function loadTenant(force) {
+  if (!force && STATE.loaded.tenants) return;
+  try {
+    const d = await apiCall('tenant');
+    STATE.data.tenant = d;
+    STATE.loaded.tenants = true;
+    renderTenantCard(d);
+  } catch(e) {
+    document.getElementById('tenant-cards').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">❌</div><p>Error: ' + e.message + '</p></div>';
+  }
+}
+
+function renderTenantCard(d) {
+  const croPercent = d.maxCro ? Math.round((d.activeCro / d.maxCro) * 100) : 0;
+  document.getElementById('tenant-cards').innerHTML = `
+    <div class="tenant-card">
+      <div class="tenant-card-bg"></div>
+      <div class="tenant-top">
+        <div style="display:flex;align-items:center;">
+          <div class="tenant-avatar">🎓</div>
+          <div class="tenant-info">
+            <div class="tenant-name">${d.brandName}</div>
+            <div class="tenant-id">${d.tenantId}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
+          <span class="badge ${d.tier.toLowerCase()}">${d.tier}</span>
+          <span class="badge ${d.status === 'ACTIVE' ? 'active' : 'error'}">${d.status}</span>
+        </div>
+      </div>
+
+      <div class="tenant-metrics">
+        <div class="tenant-metric">
+          <div class="tm-value" style="color:var(--green)">${fmt(d.activeCro)}</div>
+          <div class="tm-label">CRO Aktif</div>
+        </div>
+        <div class="tenant-metric">
+          <div class="tm-value" style="color:var(--blue)">${fmt(d.siswaAktif)}</div>
+          <div class="tm-label">Siswa/Periode</div>
+        </div>
+        <div class="tenant-metric">
+          <div class="tm-value" style="color:var(--purple)">${fmt(d.sekolahAktif)}</div>
+          <div class="tm-label">Sekolah/Periode</div>
+        </div>
+        <div class="tenant-metric">
+          <div class="tm-value" style="color:var(--amber)">${fmt(d.activeTemplates)}</div>
+          <div class="tm-label">WA Template</div>
+        </div>
+      </div>
+
+      <div class="cro-bar-wrap">
+        <div class="cro-bar-label">
+          <span>Penggunaan CRO</span>
+          <span>${d.activeCro} / ${d.maxCro} (${croPercent}%)</span>
+        </div>
+        <div class="cro-bar-track">
+          <div class="cro-bar-fill" style="width:${Math.min(croPercent,100)}%"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px;">
+        <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+          <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Periode Aktif</div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.activePeriod || '-'}</div>
+        </div>
+        <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+          <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">WhatsApp</div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.whatsappStatus}</div>
+        </div>
+        <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+          <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Pesan Masuk Terakhir</div>
+          <div style="font-size:.75rem;font-weight:600;color:var(--text-2)">${timeAgo(d.lastIncomingMsg)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;padding:16px 20px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-3);">
+      💡 <strong style="color:var(--text-2)">Tenant berikutnya</strong> dapat ditambahkan dari Nexa Control Centre setelah sistem multi-tenant aktif.
+      <span style="background:var(--bg-3);border:1px solid var(--border-h);border-radius:4px;padding:2px 8px;font-family:'JetBrains Mono',monospace;font-size:.72rem;margin-left:8px;">Fase 3 Nexa OS</span>
+    </div>
+  `;
+}
+
+// ── USAGE ─────────────────────────────────────────────────────
+const CHART_COLORS = ['#00d68f','#4d9fff','#a78bfa','#fbbf24','#f87171','#22d3ee','#fb923c','#34d399','#818cf8','#f472b6'];
+const CHART_OPTS_BASE = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, boxWidth: 12 } } },
+  scales: {
+    x: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+  }
+};
+
+function destroyChart(id) {
+  if (STATE.charts[id]) { STATE.charts[id].destroy(); delete STATE.charts[id]; }
+}
+
+async function loadUsage(force) {
+  if (!force && STATE.loaded.usage) return;
+  try {
+    const d = await apiCall('usage');
+    STATE.data.usage = d;
+    STATE.loaded.usage = true;
+    renderUsageCharts(d);
+  } catch(e) {
+    console.error('Usage error:', e);
+  }
+}
+
+function renderUsageCharts(d) {
+  // Chart 1: Siswa per status (horizontal bar)
+  destroyChart('siswa');
+  const ctxS = document.getElementById('chart-siswa').getContext('2d');
+  STATE.charts.siswa = new Chart(ctxS, {
+    type: 'bar',
+    data: {
+      labels: d.siswaByStatus.map(r => r.status),
+      datasets: [{ label: 'Siswa', data: d.siswaByStatus.map(r => r.count),
+        backgroundColor: CHART_COLORS, borderRadius: 4, borderSkipped: false }]
+    },
+    options: { ...CHART_OPTS_BASE, indexAxis: 'y',
+      plugins: { ...CHART_OPTS_BASE.plugins, legend: { display: false } } }
+  });
+
+  // Chart 2: Broadcast doughnut
+  destroyChart('broadcast');
+  const ctxB = document.getElementById('chart-broadcast').getContext('2d');
+  const bcast = d.broadcast;
+  STATE.charts.broadcast = new Chart(ctxB, {
+    type: 'doughnut',
+    data: {
+      labels: ['Terkirim','Gagal','Pending'],
+      datasets: [{ data: [bcast.success, bcast.failed, bcast.pending],
+        backgroundColor: ['#00d68f','#f87171','#fbbf24'],
+        borderColor: '#0d1525', borderWidth: 2 }]
+    },
+    options: { ...CHART_OPTS_BASE,
+      cutout: '65%', scales: {},
+      plugins: {
+        legend: { position: 'bottom', labels: { color:'#94a3b8', font:{family:'Inter',size:11}, boxWidth:10 } }
+      }
+    }
+  });
+
+  // Chart 3: Sekolah per status
+  destroyChart('sekolah');
+  const ctxSk = document.getElementById('chart-sekolah').getContext('2d');
+  STATE.charts.sekolah = new Chart(ctxSk, {
+    type: 'bar',
+    data: {
+      labels: d.sekolahByStatus.map(r => r.status),
+      datasets: [{ label: 'Sekolah', data: d.sekolahByStatus.map(r => r.count),
+        backgroundColor: CHART_COLORS, borderRadius: 4, borderSkipped: false }]
+    },
+    options: { ...CHART_OPTS_BASE, indexAxis: 'y',
+      plugins: { ...CHART_OPTS_BASE.plugins, legend: { display: false } } }
+  });
+
+  // Chart 4: Chat volume last 7 days
+  destroyChart('chat');
+  const ctxC = document.getElementById('chart-chat').getContext('2d');
+  // Group by day
+  const dayMap = {};
+  d.msgByDay.forEach(r => {
+    if (!dayMap[r.day]) dayMap[r.day] = { incoming: 0, outgoing: 0 };
+    if (r.direction === 'incoming') dayMap[r.day].incoming += r.count;
+    else dayMap[r.day].outgoing += r.count;
+  });
+  const days = Object.keys(dayMap).sort();
+  STATE.charts.chat = new Chart(ctxC, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        { label: 'Masuk', data: days.map(d => dayMap[d].incoming),
+          borderColor: '#00d68f', backgroundColor: 'rgba(0,214,143,0.1)', tension: .4, fill: true, pointRadius: 4 },
+        { label: 'Keluar', data: days.map(d => dayMap[d].outgoing),
+          borderColor: '#4d9fff', backgroundColor: 'rgba(77,159,255,0.1)', tension: .4, fill: true, pointRadius: 4 }
+      ]
+    },
+    options: CHART_OPTS_BASE
+  });
+
+  // CRO Activity table
+  const tbody = document.getElementById('cro-activity-body');
+  const total = d.croActivity.reduce((s, r) => s + r.count, 0);
+  tbody.innerHTML = d.croActivity.length
+    ? d.croActivity.map((r, i) => `
+        <tr>
+          <td style="color:var(--text-3)">${i+1}</td>
+          <td><strong>${r.cro || '-'}</strong></td>
+          <td>${fmt(r.count)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:6px;background:var(--bg-4);border-radius:3px;">
+                <div style="width:${total?Math.round(r.count/total*100):0}%;height:100%;border-radius:3px;background:var(--green)"></div>
+              </div>
+              <span style="font-size:.75rem;color:var(--text-3);width:36px;text-align:right">${total?Math.round(r.count/total*100):0}%</span>
+            </div>
+          </td>
+        </tr>`)
+      .join('')
+    : '<tr><td colspan="4"><div class="empty-state" style="padding:24px"><p>Belum ada data</p></div></td></tr>';
+}
+
+// ── TEAM ──────────────────────────────────────────────────────
+async function loadTeam(force) {
+  if (!force && STATE.loaded.team) return;
+  try {
+    const users = await apiCall('users');
+    STATE.data.users = users;
+    STATE.loaded.team = true;
+    const tbody = document.getElementById('team-tbody');
+    tbody.innerHTML = users.length
+      ? users.map(u => `
+          <tr>
+            <td><strong>${u.nama || '-'}</strong></td>
+            <td><span style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--text-2)">${u.username}</span></td>
+            <td><span class="badge ${roleColor(u.role)}" style="font-size:.7rem">${u.role}</span></td>
+            <td><span class="badge ${(u.status||'').toLowerCase()==='aktif'?'active':'warn'}" style="font-size:.7rem">${u.status||'-'}</span></td>
+          </tr>`)
+      .join('')
+      : '<tr><td colspan="4"><div class="empty-state" style="padding:24px"><p>Belum ada user</p></div></td></tr>';
+  } catch(e) {
+    document.getElementById('team-tbody').innerHTML =
+      '<tr><td colspan="4"><div class="empty-state" style="padding:24px"><p>Error: ' + e.message + '</p></div></td></tr>';
+  }
+}
+
+// ── FEATURES ──────────────────────────────────────────────────
+function renderFeatures() {
+  const features = [
+    { code:'school_crm',           name:'CRM Sekolah',           desc:'Manajemen master sekolah & pipeline', on:true },
+    { code:'student_crm',          name:'CRM Siswa',             desc:'Manajemen siswa & funnel rekrutmen',  on:true },
+    { code:'task_management',      name:'Task Management',        desc:'Task list & weekly planning',          on:true },
+    { code:'home_visit',           name:'Home Visit',             desc:'Modul kunjungan rumah siswa',         on:true },
+    { code:'whatsapp_integration', name:'WhatsApp Integration',  desc:'WABA Cloud API integration',          on:true },
+    { code:'whatsapp_shared_inbox',name:'Shared Inbox',          desc:'Multi-CRO shared WhatsApp inbox',     on:true },
+    { code:'whatsapp_templates',   name:'WA Templates',          desc:'Template pesan WhatsApp',             on:true },
+    { code:'broadcast',            name:'Broadcast',             desc:'Blast pesan ke banyak siswa',         on:true },
+    { code:'nurturing',            name:'Nurturing Campaign',    desc:'Kampanye otomatis follow-up',         on:true },
+    { code:'advanced_reports',     name:'Laporan Lanjutan',      desc:'Dashboard & analytics',               on:true },
+    { code:'custom_pipeline',      name:'Custom Pipeline',       desc:'Pipeline stages kustom',              on:false},
+    { code:'custom_domain',        name:'Custom Domain',         desc:'Domain kustom per tenant',            on:false},
+    { code:'white_label',          name:'White Label',           desc:'Hapus branding Nexa dari UI',        on:false},
+    { code:'api_access',           name:'API Access',            desc:'REST API untuk integrasi eksternal',  on:false},
+    { code:'auto_assignment',      name:'Auto Assignment',       desc:'Otomatis assign chat ke CRO',        on:false},
+  ];
+
+  document.getElementById('feature-grid').innerHTML = features.map(f => `
+    <div class="feature-item">
+      <div class="feature-left">
+        <div class="feature-name">${f.name}</div>
+        <div class="feature-desc">${f.desc}</div>
+      </div>
+      <div class="toggle ${f.on ? 'on' : ''}" title="${f.on ? 'Aktif' : 'Nonaktif'}"></div>
+    </div>`).join('');
+}
+
+// ── HEALTH ────────────────────────────────────────────────────
+async function loadHealth(force) {
+  if (!force && STATE.loaded.health) return;
+  const btn = document.getElementById('btn-refresh-health');
+  btn && btn.classList.add('spinning');
+  try {
+    const d = await apiCall('health');
+    STATE.data.health = d;
+    STATE.loaded.health = true;
+
+    // DB status
+    const isDbOk = d.dbStatus === 'OK';
+    document.getElementById('db-status-icon').textContent = isDbOk ? '✅' : '❌';
+    const dbTxt = document.getElementById('db-status-text');
+    dbTxt.textContent = isDbOk ? 'Connected' : 'Error';
+    dbTxt.style.color = isDbOk ? 'var(--green)' : 'var(--red)';
+
+    // Table counts
+    const grid = document.getElementById('health-table-counts');
+    if (d.tableCounts && Object.keys(d.tableCounts).length) {
+      grid.innerHTML = Object.entries(d.tableCounts).map(([tbl, cnt]) => `
+        <div class="health-item">
+          <div class="health-item-label">${tbl.replace(/_/g,' ')}</div>
+          <div class="health-item-value number">${fmt(cnt)}</div>
+        </div>`).join('');
+    } else {
+      grid.innerHTML = '<div class="empty-state"><p>Tidak ada data</p></div>';
+    }
+
+    document.getElementById('health-last-msg').textContent   = fmtTs(d.lastIncomingMessage);
+    document.getElementById('health-last-bcast').textContent = fmtTs(d.lastBroadcast);
+    document.getElementById('health-checked-at').textContent = fmtTs(d.checkedAt);
+  } catch(e) {
+    document.getElementById('db-status-text').textContent = 'Error';
+    document.getElementById('db-status-text').style.color = 'var(--red)';
+  } finally {
+    btn && btn.classList.remove('spinning');
+  }
+}
+
+// ── ACTIVITY ──────────────────────────────────────────────────
+async function loadActivity(force, targetId) {
+  const id = targetId || 'activity-log-feed';
+  if (!force && STATE.loaded.activity && id === 'activity-log-feed') return;
+  try {
+    const acts = await apiCall('activity');
+    STATE.data.activity = acts;
+    if (id === 'activity-log-feed') STATE.loaded.activity = true;
+    renderActivityFeed(acts, id);
+  } catch(e) {
+    document.getElementById(id).innerHTML =
+      '<div class="empty-state"><div class="empty-icon">❌</div><p>Error: ' + e.message + '</p></div>';
+  }
+}
+
+function renderActivityFeed(acts, targetId) {
+  const el = document.getElementById(targetId);
+  if (!acts || acts.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>Belum ada aktivitas dalam 24 jam terakhir.</p></div>';
+    return;
+  }
+  const typeBg = { broadcast:'var(--amber-dim)', siswa_baru:'var(--green-dim)', chat:'var(--blue-dim)', homevisit:'var(--purple-dim)', conversation:'var(--cyan-dim)' };
+  el.innerHTML = acts.map(a => `
+    <div class="activity-item">
+      <div class="activity-icon" style="background:${typeBg[a.type]||'var(--bg-4)'}">
+        ${a.icon}
+      </div>
+      <div class="activity-body">
+        <div class="activity-title">${a.title}</div>
+        <div class="activity-desc">${a.desc || ''}</div>
+        <div class="activity-meta">
+          <span class="activity-user">👤 ${a.user || '-'}</span>
+          ${a.badge ? `<span class="badge info" style="font-size:.65rem;padding:1px 7px">${a.badge}</span>` : ''}
+          <span class="activity-time">${timeAgo(a.ts)}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+function initApp() {
+  // Load current section data
+  loadOverview();
+
+  // Render static features
+  renderFeatures();
+
+  // Check session restored
+  console.log('[Nexa OS] Command Centre initialized.');
+}
+
+// ── BOOT ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Try restore session
+  const saved = sessionStorage.getItem(NEXA_CONFIG.SESSION_KEY);
+  if (saved) {
+    STATE.adminKey = saved;
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  }
+
+  // Enter key on login
+  document.getElementById('admin-key-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doAdminLogin();
+  });
+});
+</script>
+</body>
+</html>
