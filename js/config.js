@@ -11,8 +11,8 @@
 
 const NEXA_CONFIG = {
   // ── Wajib diisi ───────────────────────────────────────────
-  // URL deployment GAS (setelah clasp push + deploy)
-  GAS_API_URL: 'http://localhost:3000/api/admin',
+  // URL backend Nexa OS (Express)
+  API_URL: 'http://localhost:3001/api/admin',
 
   // Versi dashboard
   VERSION: '1.0.0-alpha',

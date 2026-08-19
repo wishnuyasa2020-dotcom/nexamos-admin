@@ -934,21 +934,9 @@ function roleColor(role) {
 
 // ── API ───────────────────────────────────────────────────────
 async function apiCall(cmd) {
-  let urlStr = '';
-  
-  if (NEXA_CONFIG.GAS_API_URL.includes('script.google.com')) {
-    // Mode GAS
-    const url = new URL(NEXA_CONFIG.GAS_API_URL);
-    url.searchParams.set('action', 'nexaControl');
-    url.searchParams.set('key', STATE.adminKey);
-    url.searchParams.set('cmd', cmd);
-    urlStr = url.toString();
-  } else {
-    // Mode Express Lokal (REST API)
-    const url = new URL(NEXA_CONFIG.GAS_API_URL + '/' + cmd);
-    url.searchParams.set('adminKey', STATE.adminKey);
-    urlStr = url.toString();
-  }
+  const url = new URL(NEXA_CONFIG.API_URL + '/' + cmd);
+  url.searchParams.set('adminKey', STATE.adminKey);
+  const urlStr = url.toString();
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NEXA_CONFIG.FETCH_TIMEOUT_MS);
@@ -960,8 +948,7 @@ async function apiCall(cmd) {
     });
     const json = await res.json();
     
-    // GAS pakai {ok: true}, Express pakai {status: 'ok'}
-    if (!json.ok && json.status !== 'ok') {
+    if (json.status !== 'ok') {
       throw new Error(json.error || json.message || 'API error');
     }
     return json.data;
