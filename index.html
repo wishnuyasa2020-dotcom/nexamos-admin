@@ -550,13 +550,35 @@
     <div class="login-logo">⚡</div>
     <h1>Nexa OS</h1>
     <p>Command Centre — Akses terbatas untuk Nexa Admin</p>
-    <input
-      type="password"
-      class="login-input"
-      id="admin-key-input"
-      placeholder="Masukkan Admin Key"
-      autocomplete="current-password"
-    >
+    <div style="position: relative; margin-bottom: 16px;">
+      <input
+        type="password"
+        class="login-input"
+        id="admin-key-input"
+        placeholder="Masukkan Admin Key"
+        autocomplete="current-password"
+        style="margin-bottom: 0; padding-right: 40px;"
+      >
+      <button type="button" onclick="toggleAdminKey()" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #a1a1aa; padding: 8px; z-index: 10;">
+        <svg id="icon-admin-key-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      </button>
+    </div>
+    <script>
+      function toggleAdminKey() {
+        const inp = document.getElementById('admin-key-input');
+        const icon = document.getElementById('icon-admin-key-eye');
+        if (inp.type === 'password') {
+          inp.type = 'text';
+          icon.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>';
+        } else {
+          inp.type = 'password';
+          icon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+      }
+    </script>
     <button class="btn-login" id="login-btn" onclick="doAdminLogin()">
       Masuk ke Command Centre
     </button>
@@ -608,7 +630,28 @@
     </div>
     <div class="form-group">
       <label class="form-label">DB Password</label>
-      <input type="password" id="t-dbpass" class="form-input" placeholder="********">
+      <div style="position: relative;">
+        <input type="password" id="t-dbpass" class="form-input" placeholder="********" style="padding-right: 40px;">
+        <button type="button" onclick="toggleDbPass()" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #a1a1aa; padding: 8px; z-index: 10;">
+          <svg id="icon-dbpass-eye" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+      <script>
+        function toggleDbPass() {
+          const inp = document.getElementById('t-dbpass');
+          const icon = document.getElementById('icon-dbpass-eye');
+          if (inp.type === 'password') {
+            inp.type = 'text';
+            icon.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line>';
+          } else {
+            inp.type = 'password';
+            icon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
+          }
+        }
+      </script>
     </div>
     <div style="font-size: .85rem; color: var(--green); margin: 16px 0 8px; font-weight: 700;">Admin Pertama</div>
     <div class="form-group">
@@ -1588,10 +1631,11 @@ async function submitNewTenant() {
   const dbName = document.getElementById('t-dbname').value.trim();
   const dbUser = document.getElementById('t-dbuser').value.trim();
   const dbPass = document.getElementById('t-dbpass').value;
+  const adminEmail = document.getElementById('t-admin-email').value.trim();
 
   const errEl = document.getElementById('add-tenant-error');
-  if (!brand || !dbHost || !dbName || !dbUser || !dbPass) {
-    errEl.textContent = 'Semua field wajib diisi.';
+  if (!brand || !dbHost || !dbName || !dbUser || !dbPass || !adminEmail) {
+    errEl.textContent = 'Semua field wajib diisi, termasuk Email Admin.';
     errEl.style.color = 'var(--red)';
     return;
   }
@@ -1605,7 +1649,7 @@ async function submitNewTenant() {
   try {
     const url = new URL(NEXA_CONFIG.API_URL + '/tenant');
     url.searchParams.set('adminKey', STATE.adminKey);
-    const payload = { brand, tier, maxCro, dbHost, dbName, dbUser, dbPass };
+    const payload = { brand, tier, maxCro, dbHost, dbName, dbUser, dbPass, adminEmail };
     
     const res = await fetch(url.toString(), {
       method: 'POST',
