@@ -335,6 +335,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 24px;
+      margin-bottom: 24px;
       position: relative; overflow: hidden;
       transition: border-color .2s;
     }
@@ -499,6 +500,46 @@
 
     /* ── Loading skeleton ────────────────────────────────────── */
     .skel { background: var(--bg-3); border-radius: 4px; animation: shimmer 1.2s infinite; }
+
+    /* ── Modal ──────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-box {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius); width: 100%; max-width: 500px;
+      padding: 24px; box-shadow: var(--shadow);
+      transform: translateY(20px); transition: transform .3s;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-overlay.active .modal-box { transform: translateY(0); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 1.2rem; font-weight: 700; }
+    .btn-close { background: none; border: none; color: var(--text-2); font-size: 1.5rem; cursor: pointer; }
+    .btn-close:hover { color: var(--red); }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: .8rem; color: var(--text-2); margin-bottom: 6px; font-weight: 600; }
+    .form-input {
+      width: 100%; background: var(--bg-3); border: 1px solid var(--border-h);
+      border-radius: var(--radius-sm); color: var(--text); padding: 10px 14px;
+      font-size: .9rem; outline: none; transition: border-color .2s;
+    }
+    .form-input:focus { border-color: var(--green); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-footer { margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px; }
+    .btn-secondary {
+      background: var(--bg-3); border: 1px solid var(--border-h);
+      color: var(--text); padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--green); border: none; color: #000; font-weight: 700;
+      padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -521,6 +562,91 @@
     </button>
     <div class="login-error" id="login-error"></div>
     <div class="login-powered">Powered by <span>Nexa OS</span> v1.0.0-alpha</div>
+  </div>
+</div>
+
+<!-- ── ADD TENANT MODAL ────────────────────────────────────── -->
+<div id="modal-add-tenant" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Tambah Tenant Baru</div>
+      <button class="btn-close" onclick="closeAddTenantModal()">&times;</button>
+    </div>
+    <div id="add-tenant-error" style="color:var(--red); font-size:.8rem; margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label class="form-label">Nama Brand</label>
+      <input type="text" id="t-brand" class="form-input" placeholder="Contoh: Klinik Estetika B">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tier Langganan</label>
+        <select id="t-tier" class="form-input">
+          <option value="Free">Free</option>
+          <option value="Basic">Basic</option>
+          <option value="Pro">Pro</option>
+          <option value="Business">Business</option>
+          <option value="Enterprise">Enterprise</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Maksimal CRO (Seat)</label>
+        <input type="number" id="t-maxcro" class="form-input" value="1" min="1">
+      </div>
+    </div>
+    <div style="font-size: .85rem; color: var(--green); margin: 16px 0 8px; font-weight: 700;">Kredensial Database Baru</div>
+    <div class="form-group">
+      <label class="form-label">DB Host</label>
+      <input type="text" id="t-dbhost" class="form-input" value="srv1412.hstgr.io">
+    </div>
+    <div class="form-group">
+      <label class="form-label">DB Name</label>
+      <input type="text" id="t-dbname" class="form-input" placeholder="u294320793_tenant_001">
+    </div>
+    <div class="form-group">
+      <label class="form-label">DB User</label>
+      <input type="text" id="t-dbuser" class="form-input" placeholder="u294320793_admin_001">
+    </div>
+    <div class="form-group">
+      <label class="form-label">DB Password</label>
+      <input type="password" id="t-dbpass" class="form-input" placeholder="********">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeAddTenantModal()">Batal</button>
+      <button class="btn-primary" id="btn-submit-tenant" onclick="submitNewTenant()">Simpan & Provisioning</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD-ON CRO MODAL ────────────────────────────────────── -->
+<div id="modal-addon-cro" class="modal-overlay">
+  <div class="modal-box" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title">Tambah Kuota CRO</div>
+      <button class="btn-close" onclick="closeAddonModal()">&times;</button>
+    </div>
+    <div id="addon-error" style="color:var(--red); font-size:.8rem; margin-bottom:12px;"></div>
+    
+    <div class="form-group">
+      <label class="form-label">Nama Tenant</label>
+      <input type="text" id="addon-brand" class="form-input" disabled style="background:var(--bg-4); color:var(--text-2);">
+      <input type="hidden" id="addon-tenantid">
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Batas Maksimal Saat Ini</label>
+        <input type="text" id="addon-currentmax" class="form-input" disabled style="background:var(--bg-4); color:var(--text-2); font-weight:700;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tambahan (+)</label>
+        <input type="number" id="addon-qty" class="form-input" value="1" min="1" style="border-color:var(--green); font-weight:700;">
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeAddonModal()">Batal</button>
+      <button class="btn-primary" id="btn-submit-addon" onclick="submitAddonCro()">Update Kuota</button>
+    </div>
   </div>
 </div>
 
@@ -684,9 +810,14 @@
             <div class="section-title">Tenants</div>
             <div class="section-subtitle">Daftar klien aktif di platform Nexa OS</div>
           </div>
-          <button class="btn-refresh" onclick="loadTenant(true)">
-            <span class="refresh-icon">↻</span> Refresh
-          </button>
+          <div class="section-actions">
+            <button class="btn-refresh" style="background: linear-gradient(135deg, var(--green), #00b377); color: #000; font-weight: 700; border: none;" onclick="openAddTenantModal()">
+              <span class="refresh-icon" style="font-weight: 800; font-size: 1.1rem; line-height: 1;">+</span> Tambah Tenant
+            </button>
+            <button class="btn-refresh" onclick="loadTenant(true)">
+              <span class="refresh-icon">↻</span> Refresh
+            </button>
+          </div>
         </div>
 
         <div id="tenant-cards">
@@ -1085,16 +1216,21 @@ async function loadTenant(force) {
     const d = await apiCall('tenant');
     STATE.data.tenant = d;
     STATE.loaded.tenants = true;
-    renderTenantCard(d);
+    
+    if (Array.isArray(d)) {
+      document.getElementById('tenant-cards').innerHTML = d.map(t => renderTenantCardHTML(t)).join('');
+    } else {
+      document.getElementById('tenant-cards').innerHTML = renderTenantCardHTML(d);
+    }
   } catch(e) {
     document.getElementById('tenant-cards').innerHTML =
       '<div class="empty-state"><div class="empty-icon">❌</div><p>Error: ' + e.message + '</p></div>';
   }
 }
 
-function renderTenantCard(d) {
+function renderTenantCardHTML(d) {
   const croPercent = d.maxCro ? Math.round((d.activeCro / d.maxCro) * 100) : 0;
-  document.getElementById('tenant-cards').innerHTML = `
+  return `
     <div class="tenant-card">
       <div class="tenant-card-bg"></div>
       <div class="tenant-top">
@@ -1133,7 +1269,10 @@ function renderTenantCard(d) {
       <div class="cro-bar-wrap">
         <div class="cro-bar-label">
           <span>Penggunaan CRO</span>
-          <span>${d.activeCro} / ${d.maxCro} (${croPercent}%)</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button onclick="openAddonModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', ${d.maxCro})" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text);padding:2px 8px;border-radius:12px;font-size:.65rem;cursor:pointer;font-weight:700;">+ Tambah Seat</button>
+            <span>${d.activeCro} / ${d.maxCro} (${croPercent}%)</span>
+          </div>
         </div>
         <div class="cro-bar-track">
           <div class="cro-bar-fill" style="width:${Math.min(croPercent,100)}%"></div>
@@ -1154,11 +1293,6 @@ function renderTenantCard(d) {
           <div style="font-size:.75rem;font-weight:600;color:var(--text-2)">${timeAgo(d.lastIncomingMsg)}</div>
         </div>
       </div>
-    </div>
-
-    <div style="margin-top:20px;padding:16px 20px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;color:var(--text-3);">
-      💡 <strong style="color:var(--text-2)">Tenant berikutnya</strong> dapat ditambahkan dari Nexa Control Centre setelah sistem multi-tenant aktif.
-      <span style="background:var(--bg-3);border:1px solid var(--border-h);border-radius:4px;padding:2px 8px;font-family:'JetBrains Mono',monospace;font-size:.72rem;margin-left:8px;">Fase 3 Nexa OS</span>
     </div>
   `;
 }
@@ -1429,6 +1563,130 @@ function initApp() {
 
   // Check session restored
   console.log('[Nexa OS] Command Centre initialized.');
+}
+
+// ── TENANT PROVISIONING ───────────────────────────────────────
+function openAddTenantModal() {
+  document.getElementById('modal-add-tenant').classList.add('active');
+  document.getElementById('add-tenant-error').textContent = '';
+}
+
+function closeAddTenantModal() {
+  document.getElementById('modal-add-tenant').classList.remove('active');
+}
+
+async function submitNewTenant() {
+  const brand = document.getElementById('t-brand').value.trim();
+  const tier = document.getElementById('t-tier').value;
+  const maxCro = parseInt(document.getElementById('t-maxcro').value || '1');
+  const dbHost = document.getElementById('t-dbhost').value.trim();
+  const dbName = document.getElementById('t-dbname').value.trim();
+  const dbUser = document.getElementById('t-dbuser').value.trim();
+  const dbPass = document.getElementById('t-dbpass').value;
+
+  const errEl = document.getElementById('add-tenant-error');
+  if (!brand || !dbHost || !dbName || !dbUser || !dbPass) {
+    errEl.textContent = 'Semua field wajib diisi.';
+    errEl.style.color = 'var(--red)';
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit-tenant');
+  btn.disabled = true;
+  btn.textContent = 'Provisioning... (Tunggu)';
+  errEl.textContent = 'Menjalankan auto-migration, mohon tunggu...';
+  errEl.style.color = 'var(--text-3)';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/tenant');
+    url.searchParams.set('adminKey', STATE.adminKey);
+    const payload = { brand, tier, maxCro, dbHost, dbName, dbUser, dbPass };
+    
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menambahkan tenant');
+    
+    closeAddTenantModal();
+    // Reset form
+    document.getElementById('t-brand').value = '';
+    document.getElementById('t-dbname').value = '';
+    document.getElementById('t-dbuser').value = '';
+    document.getElementById('t-dbpass').value = '';
+    
+    // Refresh tenant list
+    loadTenant(true);
+    
+    // Tampilkan kredensial yang di-generate
+    const cred = json.data;
+    alert(`✅ Tenant berhasil ditambahkan!\n\nSimpan Kredensial Login Admin (Hanya muncul sekali):\nUsername: ${cred.adminUsername}\nPassword: ${cred.adminPassword}`);
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan & Provisioning';
+  }
+}
+
+// ── ADD-ON CRO PROVISIONING ───────────────────────────────────
+function openAddonModal(tenantId, brandName, currentMax) {
+  document.getElementById('addon-tenantid').value = tenantId;
+  document.getElementById('addon-brand').value = brandName;
+  document.getElementById('addon-currentmax').value = currentMax + ' Seat';
+  document.getElementById('addon-qty').value = '1';
+  document.getElementById('modal-addon-cro').classList.add('active');
+  document.getElementById('addon-error').textContent = '';
+}
+
+function closeAddonModal() {
+  document.getElementById('modal-addon-cro').classList.remove('active');
+}
+
+async function submitAddonCro() {
+  const tenantId = document.getElementById('addon-tenantid').value;
+  const tambahanCro = parseInt(document.getElementById('addon-qty').value || '0');
+  
+  const errEl = document.getElementById('addon-error');
+  if (tambahanCro <= 0) {
+    errEl.textContent = 'Tambahan CRO harus lebih dari 0.';
+    errEl.style.color = 'var(--red)';
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit-addon');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  errEl.textContent = '';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/tenant/addon');
+    url.searchParams.set('adminKey', STATE.adminKey);
+    
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, tambahanCro })
+    });
+    
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menambahkan kuota CRO');
+    
+    closeAddonModal();
+    // Refresh tenant list
+    loadTenant(true);
+    alert('✅ Kuota CRO berhasil ditambahkan!');
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update Kuota';
+  }
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
