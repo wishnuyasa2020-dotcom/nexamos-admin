@@ -653,6 +653,11 @@
         }
       </script>
     </div>
+    <div style="font-size: .85rem; color: var(--green); margin: 16px 0 8px; font-weight: 700;">Integrasi WhatsApp</div>
+    <div class="form-group">
+      <label class="form-label">WhatsApp Phone ID (Opsional)</label>
+      <input type="text" id="t-wa-id" class="form-input" placeholder="Contoh: 1202481526280919">
+    </div>
     <div style="font-size: .85rem; color: var(--green); margin: 16px 0 8px; font-weight: 700;">Admin Pertama</div>
     <div class="form-group">
       <label class="form-label">Email Admin</label>
@@ -695,6 +700,35 @@
     <div class="modal-footer" style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
       <button onclick="closeChangeTierModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 16px; border-radius:8px; cursor:pointer;">Batal</button>
       <button id="btn-submit-tier" onclick="submitChangeTier()" style="background:var(--primary); border:none; color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHANGE WHATSAPP MODAL ── -->
+<div id="modal-change-whatsapp" class="modal-overlay">
+  <div class="modal-box" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title">Ubah WhatsApp Phone ID</div>
+      <button class="btn-close" onclick="closeChangeWhatsappModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="wa-tenantid" />
+      
+      <div class="form-group">
+        <label style="font-size:.8rem;color:var(--text-2);margin-bottom:6px;display:block;">Tenant</label>
+        <input type="text" id="wa-brand" disabled style="width:100%; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-3); color:var(--text);" />
+      </div>
+      
+      <div class="form-group">
+        <label style="font-size:.8rem;color:var(--text-2);margin-bottom:6px;display:block;">WhatsApp Phone ID</label>
+        <input type="text" id="wa-phoneid" placeholder="Masukkan Phone ID (Contoh: 1202481526280919)" style="width:100%; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-2); color:var(--text);" />
+      </div>
+
+      <div id="wa-error" style="margin-top:10px; font-size:0.85rem; font-weight:500;"></div>
+    </div>
+    <div class="modal-footer" style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
+      <button onclick="closeChangeWhatsappModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 16px; border-radius:8px; cursor:pointer;">Batal</button>
+      <button id="btn-submit-wa" onclick="submitChangeWhatsapp()" style="background:var(--green); border:none; color:#000; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">Simpan</button>
     </div>
   </div>
 </div>
@@ -1432,8 +1466,11 @@ function renderTenantCardHTML(d) {
           <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.activePeriod || '-'}</div>
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
-          <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">WhatsApp</div>
-          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.whatsappStatus}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:.7rem;color:var(--text-3);">WhatsApp Phone ID</div>
+            <button onclick="openChangeWhatsappModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.whatsappPhoneId || ''}')" style="background:transparent;border:none;color:var(--blue);font-size:.65rem;cursor:pointer;text-decoration:underline;">Ubah</button>
+          </div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.whatsappPhoneId || 'Belum diset'}</div>
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
           <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Pesan Masuk Terakhir</div>
@@ -1731,6 +1768,7 @@ async function submitNewTenant() {
   const dbUser = document.getElementById('t-dbuser').value.trim();
   const dbPass = document.getElementById('t-dbpass').value;
   const adminEmail = document.getElementById('t-admin-email').value.trim();
+  const whatsappPhoneId = document.getElementById('t-wa-id').value.trim();
 
   const errEl = document.getElementById('add-tenant-error');
   if (!brand || !dbHost || !dbName || !dbUser || !dbPass || !adminEmail) {
@@ -1748,7 +1786,7 @@ async function submitNewTenant() {
   try {
     const url = new URL(NEXA_CONFIG.API_URL + '/tenant');
     url.searchParams.set('adminKey', STATE.adminKey);
-    const payload = { brand, tier, maxCro, dbHost, dbName, dbUser, dbPass, adminEmail };
+    const payload = { brand, tier, maxCro, dbHost, dbName, dbUser, dbPass, adminEmail, whatsappPhoneId };
     
     const res = await fetch(url.toString(), {
       method: 'POST',
@@ -1893,6 +1931,62 @@ async function submitChangeTier() {
     btn.textContent = 'Simpan';
   }
 }
+
+// ── CHANGE WHATSAPP PROVISIONING ─────────────────────────────
+function openChangeWhatsappModal(tenantId, brandName, currentWaId) {
+  document.getElementById('wa-tenantid').value = tenantId;
+  document.getElementById('wa-brand').value = brandName;
+  document.getElementById('wa-phoneid').value = currentWaId;
+  
+  document.getElementById('modal-change-whatsapp').classList.add('active');
+  document.getElementById('wa-error').textContent = '';
+}
+
+function closeChangeWhatsappModal() {
+  document.getElementById('modal-change-whatsapp').classList.remove('active');
+}
+
+async function submitChangeWhatsapp() {
+  const tenantId = document.getElementById('wa-tenantid').value;
+  const whatsappPhoneId = document.getElementById('wa-phoneid').value.trim();
+  const errEl = document.getElementById('wa-error');
+  
+  if (!whatsappPhoneId) {
+    errEl.textContent = 'Phone ID tidak boleh kosong.';
+    errEl.style.color = 'var(--red)';
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit-wa');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  errEl.textContent = '';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/tenant/whatsapp');
+    url.searchParams.set('adminKey', STATE.adminKey);
+    
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, whatsappPhoneId })
+    });
+    
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal mengubah WhatsApp Phone ID');
+    
+    closeChangeWhatsappModal();
+    loadTenant(true);
+    alert('✅ WhatsApp Phone ID berhasil diubah!');
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan';
+  }
+}
+
 
 // ── BOOT ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
