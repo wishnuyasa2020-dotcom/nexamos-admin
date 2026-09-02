@@ -764,6 +764,9 @@
       <div class="nav-item" data-section="features" onclick="switchSection('features', this)">
         <span class="nav-icon">🔧</span> Feature Control
       </div>
+      <div class="nav-item" data-section="templates" onclick="switchSection('templates', this)">
+        <span class="nav-icon">📝</span> Template Monitor
+      </div>
 
       <div class="nav-group-label">Sistem</div>
       <div class="nav-item" data-section="health" onclick="switchSection('health', this)">
@@ -1093,11 +1096,65 @@
         </div>
       </section>
 
+      <!-- ── TEMPLATE MONITOR ─────────────────────────────────── -->
+      <section class="section" id="section-templates">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Template Monitor</div>
+            <div class="section-subtitle">Statistik &amp; daftar template WhatsApp per tenant</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <!-- Filter tenant -->
+            <select id="tpl-tenant-filter" style="
+              background:var(--bg-3); border:1px solid var(--border-h);
+              color:var(--text); padding:6px 12px; border-radius:var(--radius-sm);
+              font-size:.82rem; outline:none; cursor:pointer;
+            ">
+              <option value="">Semua Tenant</option>
+            </select>
+            <button class="btn-refresh" onclick="TemplateModule.loadStats(); TemplateModule.loadTemplateTable(document.getElementById('tpl-tenant-filter').value)">
+              <span class="refresh-icon">↻</span> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div id="tpl-stat-cards" style="
+          display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+          gap:12px; margin-bottom:24px;
+        ">
+          <div style="color:var(--text-3); font-size:.85rem;">⏳ Memuat...</div>
+        </div>
+
+        <!-- Template Table -->
+        <div class="panel">
+          <div class="panel-body no-pad">
+            <table style="width:100%; border-collapse:collapse; font-size:.84rem;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border); background:var(--bg-4);">
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Tenant</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Nama Template</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Status Meta</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Status CRM</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Kategori</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Pipeline</th>
+                  <th style="text-align:left; padding:12px 16px; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:600;">Updated</th>
+                </tr>
+              </thead>
+              <tbody id="tpl-table-body">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-3); padding:32px;">⏳ Memuat data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div><!-- /content -->
   </main>
 </div><!-- /app -->
 
 <script src="js/config.js"></script>
+<script src="js/templates.js"></script>
 <script>
 /* ============================================================
    NEXA OS — Command Centre App
@@ -1214,10 +1271,14 @@ function doLogout() {
 
 // ── Navigation ────────────────────────────────────────────────
 const SECTION_TITLES = {
-  overview: 'Overview', tenants: 'Tenants',
-  usage: 'Usage & Analytics', team: 'Team & Users',
-  features: 'Feature Control', health: 'System Health',
-  activity: 'Activity Log'
+  overview:  'Overview',
+  tenants:   'Tenants',
+  usage:     'Usage & Analytics',
+  team:      'Team & Users',
+  features:  'Feature Control',
+  templates: 'Template Monitor',
+  health:    'System Health',
+  activity:  'Activity Log'
 };
 
 function switchSection(name, el) {
@@ -1234,12 +1295,13 @@ function switchSection(name, el) {
 function loadSectionData(name) {
   if (STATE.loaded[name]) return; // already loaded
   switch(name) {
-    case 'overview': loadOverview(); break;
-    case 'tenants':  loadTenant();   break;
-    case 'usage':    loadUsage();    break;
-    case 'team':     loadTeam();     break;
-    case 'health':   loadHealth();   break;
-    case 'activity': loadActivity(); break;
+    case 'overview':   loadOverview();           break;
+    case 'tenants':    loadTenant();              break;
+    case 'usage':      loadUsage();               break;
+    case 'team':       loadTeam();                break;
+    case 'health':     loadHealth();              break;
+    case 'activity':   loadActivity();            break;
+    case 'templates':  TemplateModule.init();     break;
   }
 }
 
