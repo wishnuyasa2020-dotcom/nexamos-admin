@@ -12,7 +12,7 @@
 const NEXA_CONFIG = {
   // ── Wajib diisi ───────────────────────────────────────────
   // URL backend Nexa OS (Express)
-  API_URL: 'http://localhost:3001/api/admin',
+  API_URL: 'https://nexa-os-pmr8.onrender.com/api/admin',
 
   // Versi dashboard
   VERSION: '1.0.0-alpha',
@@ -25,6 +25,6 @@ const NEXA_CONFIG = {
   // Session storage key untuk admin key
   SESSION_KEY: 'NEXA_ADMIN_SESSION',
 
-  // Timeout fetch request (ms)
-  FETCH_TIMEOUT_MS: 30000,
+  // Timeout fetch request (ms) (dinaikkan ke 60 detik untuk mencegah timeout saat cold start Render)
+  FETCH_TIMEOUT_MS: 60000,
 };
