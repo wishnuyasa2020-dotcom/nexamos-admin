@@ -665,7 +665,41 @@
   </div>
 </div>
 
-<!-- ── ADD-ON CRO MODAL ────────────────────────────────────── -->
+<!-- ── CHANGE TIER MODAL ── -->
+<div id="modal-change-tier" class="modal-overlay">
+  <div class="modal-box" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title">Ubah Paket Tenant</div>
+      <button class="btn-close" onclick="closeChangeTierModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tier-tenantid" />
+      
+      <div class="form-group">
+        <label>Tenant</label>
+        <input type="text" id="tier-brand" disabled style="background:var(--bg-3)" />
+      </div>
+      
+      <div class="form-group">
+        <label>Pilih Paket</label>
+        <select id="tier-select" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-h); background:var(--bg-2); color:var(--text);">
+          <option value="Free">Free</option>
+          <option value="Basic">Basic</option>
+          <option value="Pro">Pro</option>
+          <option value="Enterprise">Enterprise</option>
+        </select>
+      </div>
+
+      <div id="tier-error" style="margin-top:10px; font-size:0.85rem; font-weight:500;"></div>
+    </div>
+    <div class="modal-footer" style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
+      <button onclick="closeChangeTierModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 16px; border-radius:8px; cursor:pointer;">Batal</button>
+      <button id="btn-submit-tier" onclick="submitChangeTier()" style="background:var(--primary); border:none; color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🚀 ADD-ON CRO MODAL 🚀 -->
 <div id="modal-addon-cro" class="modal-overlay">
   <div class="modal-box" style="max-width: 400px;">
     <div class="modal-header">
@@ -1289,8 +1323,11 @@ function renderTenantCardHTML(d) {
             <div class="tenant-id">${d.tenantId}</div>
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
-          <span class="badge ${d.tier.toLowerCase()}">${d.tier}</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span class="badge ${d.tier.toLowerCase()}">${d.tier}</span>
+            <button onclick="openChangeTierModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.tier}')" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text);padding:2px 6px;border-radius:4px;font-size:.65rem;cursor:pointer;font-weight:600;">Ubah</button>
+          </div>
           <span class="badge ${d.status === 'ACTIVE' ? 'active' : 'error'}">${d.status}</span>
         </div>
       </div>
@@ -1735,6 +1772,63 @@ async function submitAddonCro() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Update Kuota';
+  }
+}
+
+// ── CHANGE TIER PROVISIONING ───────────────────────────────────
+function openChangeTierModal(tenantId, brandName, currentTier) {
+  document.getElementById('tier-tenantid').value = tenantId;
+  document.getElementById('tier-brand').value = brandName;
+  
+  const capTier = currentTier.charAt(0).toUpperCase() + currentTier.slice(1).toLowerCase();
+  document.getElementById('tier-select').value = capTier;
+  
+  document.getElementById('modal-change-tier').classList.add('active');
+  document.getElementById('tier-error').textContent = '';
+}
+
+function closeChangeTierModal() {
+  document.getElementById('modal-change-tier').classList.remove('active');
+}
+
+async function submitChangeTier() {
+  const tenantId = document.getElementById('tier-tenantid').value;
+  const tier = document.getElementById('tier-select').value;
+  const errEl = document.getElementById('tier-error');
+  
+  if (!tier) {
+    errEl.textContent = 'Pilih paket terlebih dahulu.';
+    errEl.style.color = 'var(--red)';
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit-tier');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  errEl.textContent = '';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/tenant/tier');
+    url.searchParams.set('adminKey', STATE.adminKey);
+    
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, tier })
+    });
+    
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal mengubah paket');
+    
+    closeChangeTierModal();
+    loadTenant(true);
+    alert('✅ Paket berlangganan berhasil diubah!');
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan';
   }
 }
 
