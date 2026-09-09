@@ -1,12 +1,6 @@
 /**
  * Nexa OS — Command Centre
  * js/config.js
- *
- * EDIT INI setelah GAS di-deploy ulang:
- * Ganti GAS_API_URL dengan URL deployment GAS kamu.
- *
- * Format URL GAS:
- *   https://script.google.com/macros/s/SCRIPT_ID/exec
  */
 
 const NEXA_CONFIG = {
