@@ -766,6 +766,44 @@
   </div>
 </div>
 
+<!-- ── ADD DB POOL MODAL ───────────────────────────────────── -->
+<div id="modal-add-pool" class="modal-overlay">
+  <div class="modal-box" style="max-width: 480px;">
+    <div class="modal-header">
+      <div class="modal-title">Tambah Database ke DB Pool</div>
+      <button class="btn-close" onclick="closeAddPoolModal()">&times;</button>
+    </div>
+    <div id="add-pool-error" style="color:var(--red); font-size:.8rem; margin-bottom:12px;"></div>
+    
+    <div class="form-group">
+      <label class="form-label">DB Host</label>
+      <input type="text" id="p-host" class="form-input" value="srv1412.hstgr.io" placeholder="srv1412.hstgr.io">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nama Database (MySQL Hostinger)</label>
+      <input type="text" id="p-dbname" class="form-input" placeholder="Contoh: u294320793_tenant_002">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">DB User</label>
+        <input type="text" id="p-dbuser" class="form-input" placeholder="Contoh: u294320793_admin_002">
+      </div>
+      <div class="form-group">
+        <label class="form-label">DB Password</label>
+        <input type="password" id="p-dbpass" class="form-input" placeholder="Password MySQL">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Catatan (Opsional)</label>
+      <input type="text" id="p-notes" class="form-input" placeholder="Contoh: Batch DB September 2026">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeAddPoolModal()">Batal</button>
+      <button class="btn-primary" id="btn-submit-pool" onclick="submitNewPool()">Uji & Simpan ke Pool</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── APP ─────────────────────────────────────────────────── -->
 <div id="app">
 
@@ -800,6 +838,9 @@
       </div>
       <div class="nav-item" data-section="templates" onclick="switchSection('templates', this)">
         <span class="nav-icon">📝</span> Template Monitor
+      </div>
+      <div class="nav-item" data-section="dbpool" onclick="switchSection('dbpool', this)">
+        <span class="nav-icon">🗄️</span> DB Pool (SaaS)
       </div>
 
       <div class="nav-group-label">Sistem</div>
@@ -1175,6 +1216,74 @@
           </div>
         </div>
       </section>
+ 
+      <!-- ── DB POOL (SAAS ENGINE) ──────────────────────────────── -->
+      <section class="section" id="section-dbpool">
+        <div class="section-header">
+          <div>
+            <div class="section-title">DB Pool (SaaS Engine)</div>
+            <div class="section-subtitle">Kelola pool database kosong Hostinger untuk Instant Onboarding calon klien SaaS</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn-refresh" onclick="loadDbPool()">
+              <span class="refresh-icon">↻</span> Refresh
+            </button>
+            <button class="btn-refresh" style="background: linear-gradient(135deg, var(--green), #00b377); color: #000; font-weight: 700; border: none;" onclick="openAddPoolModal()">
+              + Tambah DB ke Pool
+            </button>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:14px; margin-bottom:24px;">
+          <div class="stat-card">
+            <div class="stat-label">Siap Pakai (Available)</div>
+            <div class="stat-val" id="pool-stat-avail" style="color:var(--green)">0</div>
+            <div class="stat-sub">Slot Sign-Up instan</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Terpakai (In Use)</div>
+            <div class="stat-val" id="pool-stat-inuse" style="color:var(--blue)">0</div>
+            <div class="stat-sub">Digunakan oleh tenant</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pemeliharaan (Maintenance)</div>
+            <div class="stat-val" id="pool-stat-maint" style="color:var(--amber)">0</div>
+            <div class="stat-sub">Perlu pemeriksaan</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Kapasitas Pool</div>
+            <div class="stat-val" id="pool-stat-total">0</div>
+            <div class="stat-sub">Database terdaftar</div>
+          </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Daftar Database di Pool</div>
+            <div class="card-action" style="font-size:0.8rem;color:var(--text-3)">Host: srv1412.hstgr.io</div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nama Database</th>
+                  <th>DB User</th>
+                  <th>Status</th>
+                  <th>Digunakan Oleh</th>
+                  <th>Didaftarkan</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="pool-table-body">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-3); padding:24px;">Memuat data pool...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
     </div><!-- /content -->
   </main>
@@ -1304,6 +1413,7 @@ const SECTION_TITLES = {
   team:      'Team & Users',
   features:  'Feature Control',
   templates: 'Template Monitor',
+  dbpool:    'DB Pool (SaaS Engine)',
   health:    'System Health',
   activity:  'Activity Log'
 };
@@ -1329,6 +1439,7 @@ function loadSectionData(name) {
     case 'health':     loadHealth();              break;
     case 'activity':   loadActivity();            break;
     case 'templates':  TemplateModule.init();     break;
+    case 'dbpool':     loadDbPool();              break;
   }
 }
 
@@ -1978,8 +2089,126 @@ async function submitChangeWhatsapp() {
     btn.disabled = false;
     btn.textContent = 'Simpan';
   }
+// ── DB POOL PROVISIONING (SAAS ENGINE) ─────────────────────────
+function openAddPoolModal() {
+  document.getElementById('modal-add-pool').classList.add('active');
+  document.getElementById('add-pool-error').textContent = '';
 }
 
+function closeAddPoolModal() {
+  document.getElementById('modal-add-pool').classList.remove('active');
+}
+
+async function loadDbPool() {
+  const tbody = document.getElementById('pool-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-3); padding:24px;">⏳ Memuat data pool...</td></tr>';
+
+  try {
+    const res = await apiCall('db-pool');
+    const stats = res.stats || {};
+    const pools = res.pools || [];
+
+    document.getElementById('pool-stat-avail').textContent = stats.available || 0;
+    document.getElementById('pool-stat-inuse').textContent = stats.in_use || 0;
+    document.getElementById('pool-stat-maint').textContent = stats.maintenance || 0;
+    document.getElementById('pool-stat-total').textContent = stats.total || 0;
+
+    if (pools.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-3); padding:28px;">Belum ada database di pool. Klik "+ Tambah DB ke Pool" untuk mendaftarkan.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = pools.map(p => {
+      const badgeClass = p.status === 'AVAILABLE' ? 'active' : (p.status === 'IN_USE' ? 'info' : 'warn');
+      const tenantText = p.assigned_tenant_id 
+        ? `<strong>${p.brand_name || p.assigned_tenant_id}</strong> <span style="font-size:.7rem;color:var(--text-3)">(${p.assigned_tenant_id})</span>` 
+        : '<span style="color:var(--text-3)">— (Tersedia)</span>';
+      const dateText = p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+      const delBtn = p.status === 'AVAILABLE'
+        ? `<button onclick="deletePoolDb(${p.id}, '${p.db_name}')" style="background:transparent;border:1px solid var(--red-dim);color:var(--red);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.75rem;">Hapus</button>`
+        : `<span style="color:var(--text-3);font-size:.75rem;">Terkunci</span>`;
+
+      return `
+        <tr>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem">#${p.id}</td>
+          <td>
+            <div style="font-weight:600;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.82rem">${p.db_name}</div>
+            ${p.notes ? `<div style="font-size:.72rem;color:var(--text-3);margin-top:2px">${p.notes}</div>` : ''}
+          </td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--text-2)">${p.db_user}</td>
+          <td><span class="badge ${badgeClass}">${p.status}</span></td>
+          <td>${tenantText}</td>
+          <td style="font-size:.78rem;color:var(--text-3)">${dateText}</td>
+          <td>${delBtn}</td>
+        </tr>
+      `;
+    }).join('');
+    STATE.loaded.dbpool = true;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--red); padding:24px;">Gagal memuat DB Pool: ${e.message}</td></tr>`;
+  }
+}
+
+async function submitNewPool() {
+  const dbHost = document.getElementById('p-host').value.trim() || 'srv1412.hstgr.io';
+  const dbName = document.getElementById('p-dbname').value.trim();
+  const dbUser = document.getElementById('p-dbuser').value.trim();
+  const dbPassword = document.getElementById('p-dbpass').value;
+  const notes = document.getElementById('p-notes').value.trim();
+  const errEl = document.getElementById('add-pool-error');
+  const btn = document.getElementById('btn-submit-pool');
+
+  if (!dbName || !dbUser || !dbPassword) {
+    errEl.textContent = 'Nama database, user, dan password wajib diisi!';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Menguji & Menyimpan...';
+  errEl.textContent = '';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/db-pool');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dbHost, dbName, dbUser, dbPassword, notes })
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menyimpan ke pool');
+
+    closeAddPoolModal();
+    document.getElementById('p-dbname').value = '';
+    document.getElementById('p-dbuser').value = '';
+    document.getElementById('p-dbpass').value = '';
+    document.getElementById('p-notes').value = '';
+    loadDbPool();
+    alert('✅ Database ' + dbName + ' berhasil diuji dan didaftarkan ke DB Pool!');
+  } catch (e) {
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Uji & Simpan ke Pool';
+  }
+}
+
+async function deletePoolDb(id, name) {
+  if (!confirm(`Hapus database ${name} dari DB Pool?`)) return;
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/db-pool/' + id);
+    url.searchParams.set('adminKey', STATE.adminKey);
+    const res = await fetch(url.toString(), { method: 'DELETE' });
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menghapus');
+    loadDbPool();
+  } catch (e) {
+    alert('Gagal menghapus: ' + e.message);
+  }
+}
 
 // ── BOOT ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
