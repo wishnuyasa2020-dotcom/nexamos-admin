@@ -498,6 +498,15 @@
     }
     .period-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 
+    /* ── Beta Filter Buttons ─────────────────────────────────── */
+    .beta-filter-btn {
+      background: var(--bg-3); border: 1px solid var(--border); color: var(--text-2);
+      padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+      transition: all .2s;
+    }
+    .beta-filter-btn:hover { border-color: var(--border-h); color: var(--text); }
+    .beta-filter-btn.active { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+
     /* ── Scrollbar ───────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -847,6 +856,9 @@
       </div>
       <div class="nav-item" data-section="dbpool" onclick="switchSection('dbpool', this)">
         <span class="nav-icon">🗄️</span> DB Pool (SaaS)
+      </div>
+      <div class="nav-item" data-section="beta" onclick="switchSection('beta', this)">
+        <span class="nav-icon">🎯</span> Kurasi Beta <span class="badge warn" id="badge-pending-beta" style="display:none;margin-left:auto;font-size:0.65rem;padding:2px 6px;">0</span>
       </div>
 
       <div class="nav-group-label">Sistem</div>
@@ -1291,6 +1303,79 @@
         </div>
       </section>
 
+      <!-- ── SECTION: KURASI BETA (CLOSED BETA ONBOARDING) ── -->
+      <section class="section" id="section-beta">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Kurasi Pendaftaran Closed Beta</div>
+            <div class="section-subtitle">Review kuesioner profil lembaga &amp; provisioning akun Free Tier (Maks 10 Tenant Aktif)</div>
+          </div>
+          <div class="section-actions">
+            <button class="btn-refresh" onclick="loadBetaApplications(true)">
+              <span class="refresh-icon">↻</span> Refresh Data
+            </button>
+          </div>
+        </div>
+
+        <!-- Beta Stats Grid -->
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-label">Kuota Tenant Free Beta</div>
+            <div class="stat-val" id="beta-stat-quota" style="color:var(--green)">0 / 10</div>
+            <div class="stat-sub" id="beta-stat-label">DIBATASI (BUKA)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Menunggu Kurasi (Pending)</div>
+            <div class="stat-val" id="beta-stat-pending" style="color:var(--amber)">0</div>
+            <div class="stat-sub">Perlu review Superadmin</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">DB Siap di Pool</div>
+            <div class="stat-val" id="beta-stat-db" style="color:var(--blue)">0</div>
+            <div class="stat-sub">Kapasitas provisioning instan</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Permohonan Masuk</div>
+            <div class="stat-val" id="beta-stat-total">0</div>
+            <div class="stat-sub">Seluruh riwayat pendaftar</div>
+          </div>
+        </div>
+
+        <!-- Filter & Table Card -->
+        <div class="card" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <span style="font-size:0.82rem;font-weight:700;color:var(--text);margin-right:4px;">Filter:</span>
+              <button class="beta-filter-btn active" id="filter-btn-ALL" onclick="filterBetaTable('ALL', this)">Semua</button>
+              <button class="beta-filter-btn" id="filter-btn-PENDING" onclick="filterBetaTable('PENDING', this)">Menunggu (<span id="count-filter-pending">0</span>)</button>
+              <button class="beta-filter-btn" id="filter-btn-APPROVED" onclick="filterBetaTable('APPROVED', this)">Disetujui</button>
+              <button class="beta-filter-btn" id="filter-btn-WAITLIST" onclick="filterBetaTable('WAITLIST', this)">Waiting List</button>
+              <button class="beta-filter-btn" id="filter-btn-REJECTED" onclick="filterBetaTable('REJECTED', this)">Ditolak</button>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">
+              Selective Onboarding Protocol
+            </div>
+          </div>
+          <div class="table-wrap" style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Lembaga &amp; Kategori</th>
+                  <th>Alamat &amp; Tim</th>
+                  <th>Kontak PIC (Admin)</th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Aksi Kurasi</th>
+                </tr>
+              </thead>
+              <tbody id="beta-table-body">
+                <tr><td colspan="6" style="text-align:center; color:var(--text-3); padding:24px;">Memuat antrean pendaftar beta...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </div><!-- /content -->
   </main>
 </div><!-- /app -->
@@ -1420,6 +1505,7 @@ const SECTION_TITLES = {
   features:  'Feature Control',
   templates: 'Template Monitor',
   dbpool:    'DB Pool (SaaS Engine)',
+  beta:      'Kurasi Beta (Onboarding)',
   health:    'System Health',
   activity:  'Activity Log'
 };
@@ -1446,6 +1532,7 @@ function loadSectionData(name) {
     case 'activity':   loadActivity();            break;
     case 'templates':  TemplateModule.init();     break;
     case 'dbpool':     loadDbPool();              break;
+    case 'beta':       loadBetaApplications();    break;
   }
 }
 
@@ -1855,6 +1942,9 @@ function initApp() {
   // Render static features
   renderFeatures();
 
+  // Cek antrean pending closed beta untuk badge
+  checkPendingBetaCount();
+
   // Check session restored
   console.log('[Nexa OS] Command Centre initialized.');
 }
@@ -2215,6 +2305,215 @@ async function deletePoolDb(id, name) {
     loadDbPool();
   } catch (e) {
     alert('Gagal menghapus: ' + e.message);
+  }
+}
+
+// ── CLOSED BETA APPLICATIONS MODULE ──────────────────────────
+let _cachedBetaApps = [];
+let _activeBetaFilter = 'ALL';
+
+async function checkPendingBetaCount() {
+  try {
+    const res = await apiCall('beta-applications');
+    const stats = res.stats || {};
+    const badge = document.getElementById('badge-pending-beta');
+    const filterPending = document.getElementById('count-filter-pending');
+    if (filterPending) filterPending.textContent = stats.pendingCount || 0;
+    if (badge) {
+      if (stats.pendingCount > 0) {
+        badge.textContent = stats.pendingCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    // silent
+  }
+}
+
+async function loadBetaApplications(force) {
+  const tbody = document.getElementById('beta-table-body');
+  if (!tbody) return;
+  if (!force && STATE.loaded.beta) return;
+
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-3); padding:24px;">⏳ Memuat data kurasi beta...</td></tr>';
+
+  try {
+    const res = await apiCall('beta-applications');
+    const stats = res.stats || {};
+    _cachedBetaApps = res.applications || [];
+    STATE.loaded.beta = true;
+
+    // Update stats bar
+    const quotaEl = document.getElementById('beta-stat-quota');
+    if (quotaEl) quotaEl.textContent = `${stats.activeFreeCount || 0} / ${stats.maxQuota || 10}`;
+    const labelEl = document.getElementById('beta-stat-label');
+    if (labelEl) {
+      labelEl.textContent = stats.isQuotaFull ? 'PENUH (WAITLIST)' : 'DIBATASI (BUKA)';
+      labelEl.style.color = stats.isQuotaFull ? 'var(--amber)' : 'var(--green)';
+    }
+    const pendingEl = document.getElementById('beta-stat-pending');
+    if (pendingEl) pendingEl.textContent = stats.pendingCount || 0;
+    const dbEl = document.getElementById('beta-stat-db');
+    if (dbEl) dbEl.textContent = stats.availableDbSlots || 0;
+    const totalEl = document.getElementById('beta-stat-total');
+    if (totalEl) totalEl.textContent = _cachedBetaApps.length;
+
+    // Update badge & counter
+    const filterPending = document.getElementById('count-filter-pending');
+    if (filterPending) filterPending.textContent = stats.pendingCount || 0;
+    const badge = document.getElementById('badge-pending-beta');
+    if (badge) {
+      if (stats.pendingCount > 0) {
+        badge.textContent = stats.pendingCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    renderBetaTable();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--red); padding:24px;">Gagal memuat pendaftar beta: ${e.message}</td></tr>`;
+  }
+}
+
+function filterBetaTable(status, btn) {
+  _activeBetaFilter = status;
+  document.querySelectorAll('.beta-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderBetaTable();
+}
+
+function renderBetaTable() {
+  const tbody = document.getElementById('beta-table-body');
+  if (!tbody) return;
+
+  const filtered = _activeBetaFilter === 'ALL'
+    ? _cachedBetaApps
+    : _cachedBetaApps.filter(a => a.status === _activeBetaFilter);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-3); padding:28px;">Tidak ada permohonan dengan status: <strong>${_activeBetaFilter}</strong>.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(app => {
+    let badgeHtml = '';
+    if (app.status === 'PENDING') {
+      badgeHtml = '<span class="badge warn">MENUNGGU KURASI</span>';
+    } else if (app.status === 'APPROVED') {
+      badgeHtml = `<span class="badge active">DISETUJUI</span><div style="font-size:0.7rem;color:var(--text-3);margin-top:2px;">ID: ${app.approved_tenant_id || '-'}</div>`;
+    } else if (app.status === 'WAITLIST') {
+      badgeHtml = '<span class="badge info">WAITING LIST</span>';
+    } else {
+      badgeHtml = '<span class="badge error">DITOLAK</span>';
+    }
+
+    const waLink = app.whatsapp_number
+      ? `<a href="https://wa.me/${app.whatsapp_number.startsWith('0') ? '62' + app.whatsapp_number.slice(1) : app.whatsapp_number}" target="_blank" style="color:var(--green);text-decoration:none;font-size:0.78rem;">💬 ${app.whatsapp_number} ↗</a>`
+      : '<span style="color:var(--text-3);font-size:0.75rem;">—</span>';
+
+    const dateStr = app.created_at
+      ? new Date(app.created_at).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      : '—';
+
+    let actionBtns = '';
+    if (app.status === 'PENDING' || app.status === 'WAITLIST') {
+      actionBtns = `
+        <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+          <button onclick="approveBetaApp(${app.id}, '${app.brand_name.replace(/'/g, "\\'")}')"
+            style="background:var(--green);border:none;color:#000;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;">
+            ✓ Setujui &amp; Buat Akun
+          </button>
+          ${app.status === 'PENDING' ? `
+            <button onclick="changeBetaStatus(${app.id}, 'WAITLIST', '${app.brand_name.replace(/'/g, "\\'")}')"
+              style="background:transparent;border:1px solid var(--amber);color:var(--amber);padding:5px 9px;border-radius:6px;cursor:pointer;font-size:0.75rem;">
+              Waitlist
+            </button>
+          ` : ''}
+          <button onclick="changeBetaStatus(${app.id}, 'REJECTED', '${app.brand_name.replace(/'/g, "\\'")}')"
+            style="background:transparent;border:1px solid var(--red-dim);color:var(--red);padding:5px 8px;border-radius:6px;cursor:pointer;font-size:0.75rem;">
+            Tolak
+          </button>
+        </div>
+      `;
+    } else {
+      actionBtns = `<span style="font-size:0.75rem;color:var(--text-3);">Selesai</span>`;
+    }
+
+    return `
+      <tr>
+        <td style="font-size:0.75rem;color:var(--text-3);">${dateStr}</td>
+        <td>
+          <div style="font-weight:700;color:var(--text);font-size:0.88rem;">${app.brand_name}</div>
+          <span class="badge pro" style="font-size:0.65rem;padding:1px 6px;margin-top:3px;display:inline-block;">${app.institution_type}</span>
+        </td>
+        <td>
+          <div style="font-size:0.8rem;color:var(--text-2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${app.institution_address}">${app.institution_address}</div>
+          <div style="font-size:0.72rem;color:var(--text-3);margin-top:2px;">👥 Tim: <strong>${app.team_size}</strong></div>
+        </td>
+        <td>
+          <div style="font-weight:600;font-size:0.82rem;color:var(--text);">${app.admin_name}</div>
+          <div style="font-size:0.75rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">${app.admin_email}</div>
+          <div style="margin-top:2px;">${waLink}</div>
+        </td>
+        <td>${badgeHtml}</td>
+        <td style="text-align:right;">${actionBtns}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function approveBetaApp(id, brandName) {
+  if (!confirm(`Konfirmasi Persetujuan Closed Beta:\n\nSetujui lembaga "${brandName}"?\nSistem akan mengambil 1 database dari DB Pool, menyiapkan skema CRM, dan mengirimkan email kredensial login aktif ke PIC.`)) {
+    return;
+  }
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/beta-applications/' + id + '/approve');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menyetujui permohonan beta');
+
+    alert(`🎉 SUKSES!\n\nLembaga "${brandName}" berhasil disetujui dan diprovisioning!\n\nTenant ID: ${json.data.tenantId}\nDatabase: ${json.data.claimedDb}\nAdmin: ${json.data.adminUsername}\n\nEmail aktivasi telah dikirimkan ke pendaftar.`);
+    loadBetaApplications(true);
+    // Juga refresh tenant list & pool
+    STATE.loaded.tenants = false;
+    STATE.loaded.dbpool = false;
+  } catch (e) {
+    alert('Gagal menyetujui: ' + e.message);
+  }
+}
+
+async function changeBetaStatus(id, newStatus, brandName) {
+  const label = newStatus === 'WAITLIST' ? 'Waiting List' : 'Tolak';
+  const notes = prompt(`Masukkan catatan kurasi untuk memindahkan "${brandName}" ke status ${label}:`, '');
+  if (notes === null) return; // user cancelled prompt
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/beta-applications/' + id + '/status');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus, notes }),
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal mengubah status');
+
+    loadBetaApplications(true);
+  } catch (e) {
+    alert('Gagal mengubah status: ' + e.message);
   }
 }
 
