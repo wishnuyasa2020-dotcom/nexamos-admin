@@ -685,36 +685,74 @@
   </div>
 </div>
 
-<!-- ── CHANGE TIER MODAL ── -->
+<!-- ── CHANGE TIER & SUBSCRIPTION MODAL ── -->
 <div id="modal-change-tier" class="modal-overlay">
-  <div class="modal-box" style="max-width: 400px;">
+  <div class="modal-box" style="max-width: 480px;">
     <div class="modal-header">
-      <div class="modal-title">Ubah Paket Tenant</div>
+      <div class="modal-title">Ubah Paket &amp; Langganan</div>
       <button class="btn-close" onclick="closeChangeTierModal()">&times;</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="tier-tenantid" />
       
       <div class="form-group">
-        <label>Tenant</label>
-        <input type="text" id="tier-brand" disabled style="background:var(--bg-3)" />
+        <label class="form-label">Tenant</label>
+        <input type="text" id="tier-brand" disabled class="form-input" style="background:var(--bg-3)" />
       </div>
       
-      <div class="form-group">
-        <label>Pilih Paket</label>
-        <select id="tier-select" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-h); background:var(--bg-2); color:var(--text);">
-          <option value="Free">Free</option>
-          <option value="Pro">Pro</option>
-          <option value="Business">Business</option>
-          <option value="Enterprise">Enterprise</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Pilih Paket</label>
+          <select id="tier-select" class="form-input" onchange="updateTierModalPreview()">
+            <option value="Free">Free (Trial Beta)</option>
+            <option value="Pro">Pro</option>
+            <option value="Business">Business</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Siklus Tagihan</label>
+          <select id="tier-cycle-select" class="form-input" onchange="updateTierModalPreview()">
+            <option value="MONTHLY">Bulanan (30 Hari)</option>
+            <option value="YEARLY">Tahunan (365 Hari)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Preview limits container -->
+      <div id="tier-preview-box" style="background:var(--bg-3);border:1px solid var(--border-h);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;font-size:0.78rem;">
+        <!-- Filled dynamically -->
+      </div>
+
+      <div class="form-group" style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-3);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <input type="checkbox" id="tier-reset-dates" style="margin-top:3px;cursor:pointer;" checked>
+        <label for="tier-reset-dates" style="font-size:0.78rem;color:var(--text);cursor:pointer;line-height:1.4;">
+          <strong>Perpanjang &amp; Kunci Masa Aktif Sekarang</strong><br>
+          <span style="color:var(--text-3);">Set tanggal masa aktif baru dari hari ini (+30 hari bulanan / +365 hari tahunan).</span>
+        </label>
       </div>
 
       <div id="tier-error" style="margin-top:10px; font-size:0.85rem; font-weight:500;"></div>
     </div>
     <div class="modal-footer" style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeChangeTierModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 16px; border-radius:8px; cursor:pointer;">Batal</button>
-      <button id="btn-submit-tier" onclick="submitChangeTier()" style="background:var(--primary); border:none; color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">Simpan</button>
+      <button onclick="closeChangeTierModal()" class="btn-secondary">Batal</button>
+      <button id="btn-submit-tier" onclick="submitChangeTier()" class="btn-primary">Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INVOICE DETAIL MODAL ── -->
+<div id="modal-invoice-detail" class="modal-overlay">
+  <div class="modal-box" style="max-width: 540px;">
+    <div class="modal-header">
+      <div class="modal-title">Rincian Faktur Midtrans</div>
+      <button class="btn-close" onclick="closeInvoiceDetailModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="invoice-detail-body">
+      <!-- Filled dynamically -->
+    </div>
+    <div class="modal-footer" id="invoice-detail-footer" style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+      <button onclick="closeInvoiceDetailModal()" class="btn-secondary">Tutup</button>
     </div>
   </div>
 </div>
@@ -859,6 +897,9 @@
       </div>
       <div class="nav-item" data-section="beta" onclick="switchSection('beta', this)">
         <span class="nav-icon">🎯</span> Kurasi Beta <span class="badge warn" id="badge-pending-beta" style="display:none;margin-left:auto;font-size:0.65rem;padding:2px 6px;">0</span>
+      </div>
+      <div class="nav-item" data-section="billing" onclick="switchSection('billing', this)">
+        <span class="nav-icon">💳</span> Invoices &amp; Langganan <span class="badge warn" id="badge-unpaid-invoices" style="display:none;margin-left:auto;font-size:0.65rem;padding:2px 6px;">0</span>
       </div>
 
       <div class="nav-group-label">Sistem</div>
@@ -1375,6 +1416,92 @@
           </div>
         </div>
       </section>
+      
+      <!-- ── SECTION: INVOICES & LANGGANAN (MONETISASI SAAS) ── -->
+      <section class="section" id="section-billing">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Invoices &amp; Langganan SaaS</div>
+            <div class="section-subtitle">Monitoring transaksi Midtrans, status langganan tenant, dan verifikasi faktur</div>
+          </div>
+          <div class="section-actions">
+            <button class="btn-refresh" id="btn-refresh-billing" onclick="loadBillingInvoices(true)">
+              <span class="refresh-icon">↻</span> Refresh Data
+            </button>
+          </div>
+        </div>
+
+        <!-- Billing Stats Grid -->
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+          <div class="stat-card green">
+            <div class="stat-top">
+              <div class="stat-label">Total Omset (PAID)</div>
+              <div class="stat-icon">💰</div>
+            </div>
+            <div class="stat-value" id="billing-stat-revenue" style="font-size:1.45rem;">Rp 0</div>
+            <div class="stat-sub">Pembayaran terverifikasi</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-top">
+              <div class="stat-label">Invoice Menunggu</div>
+              <div class="stat-icon">⏳</div>
+            </div>
+            <div class="stat-value" id="billing-stat-unpaid">0</div>
+            <div class="stat-sub">Menunggu settlement / verifikasi</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-top">
+              <div class="stat-label">Tenant Berbayar</div>
+              <div class="stat-icon">⚡</div>
+            </div>
+            <div class="stat-value" id="billing-stat-tenants">0</div>
+            <div class="stat-sub">Tier PRO, BUSINESS, &amp; ENTERPRISE</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-top">
+              <div class="stat-label">Total Faktur</div>
+              <div class="stat-icon">📄</div>
+            </div>
+            <div class="stat-value" id="billing-stat-total">0</div>
+            <div class="stat-sub">Riwayat transaksi sistem</div>
+          </div>
+        </div>
+
+        <!-- Filter & Table Card -->
+        <div class="card" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <span style="font-size:0.82rem;font-weight:700;color:var(--text);margin-right:4px;">Filter Status:</span>
+              <button class="beta-filter-btn active" id="billing-filter-ALL" onclick="filterBillingTable('ALL', this)">Semua</button>
+              <button class="beta-filter-btn" id="billing-filter-UNPAID" onclick="filterBillingTable('UNPAID', this)">Menunggu (<span id="billing-count-unpaid">0</span>)</button>
+              <button class="beta-filter-btn" id="billing-filter-PAID" onclick="filterBillingTable('PAID', this)">Lunas (PAID)</button>
+              <button class="beta-filter-btn" id="billing-filter-CANCELLED" onclick="filterBillingTable('CANCELLED', this)">Dibatalkan / Expired</button>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">
+              Midtrans Payment Gateway Engine v1.0
+            </div>
+          </div>
+          <div class="table-wrap" style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>No. Faktur</th>
+                  <th>Tenant / Lembaga</th>
+                  <th>Paket &amp; Siklus</th>
+                  <th>Nominal</th>
+                  <th>Status</th>
+                  <th>Metode Bayar</th>
+                  <th>Tanggal Terbit</th>
+                  <th style="text-align:right;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="billing-table-body">
+                <tr><td colspan="8" style="text-align:center; color:var(--text-3); padding:24px;">Memuat data faktur...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
     </div><!-- /content -->
   </main>
@@ -1506,6 +1633,7 @@ const SECTION_TITLES = {
   templates: 'Template Monitor',
   dbpool:    'DB Pool (SaaS Engine)',
   beta:      'Kurasi Beta (Onboarding)',
+  billing:   'Invoices & Langganan',
   health:    'System Health',
   activity:  'Activity Log'
 };
@@ -1533,6 +1661,7 @@ function loadSectionData(name) {
     case 'templates':  TemplateModule.init();     break;
     case 'dbpool':     loadDbPool();              break;
     case 'beta':       loadBetaApplications();    break;
+    case 'billing':    loadBillingInvoices();     break;
   }
 }
 
@@ -1604,7 +1733,35 @@ async function loadTenant(force) {
 }
 
 function renderTenantCardHTML(d) {
-  const croPercent = d.maxCro ? Math.round((d.activeCro / d.maxCro) * 100) : 0;
+  const croPercent = d.maxCro ? Math.min(100, Math.round((d.activeCro / d.maxCro) * 100)) : 0;
+  const usedSiswa = d.usedSiswa != null ? d.usedSiswa : (d.siswaAktif || 0);
+  const limitSiswa = d.limitSiswa || 300;
+  const siswaPercent = limitSiswa ? Math.min(100, Math.round((usedSiswa / limitSiswa) * 100)) : 0;
+
+  const usedSekolah = d.usedSekolah != null ? d.usedSekolah : (d.sekolahAktif || 0);
+  const limitSekolah = d.limitSekolah || 10;
+  const sekolahPercent = limitSekolah ? Math.min(100, Math.round((usedSekolah / limitSekolah) * 100)) : 0;
+
+  const cycle = (d.billingCycle || 'MONTHLY').toUpperCase();
+  const cycleLabel = cycle === 'YEARLY' ? 'Tahunan (365h)' : 'Bulanan (30h)';
+
+  // Calculate days remaining
+  let expiryText = '—';
+  if (d.periodEnd) {
+    const end = new Date(d.periodEnd);
+    const now = new Date();
+    const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+      expiryText = `<span style="color:var(--red);font-weight:700;">Kadaluarsa (${Math.abs(diffDays)}h lalu)</span>`;
+    } else if (diffDays <= 7) {
+      expiryText = `<span style="color:var(--amber);font-weight:700;">⏱️ Sisa ${diffDays} hari lagi</span>`;
+    } else {
+      expiryText = `<span style="color:var(--green);font-weight:700;">⏱️ Sisa ${diffDays} hari</span>`;
+    }
+  }
+
+  const periodEndFormatted = d.periodEnd ? new Date(d.periodEnd).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+
   return `
     <div class="tenant-card">
       <div class="tenant-card-bg"></div>
@@ -1616,10 +1773,10 @@ function renderTenantCardHTML(d) {
             <div class="tenant-id">${d.tenantId}</div>
           </div>
         </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <div style="display:flex;align-items:center;gap:4px;">
-            <span class="badge ${d.tier.toLowerCase()}">${d.tier}</span>
-            <button onclick="openChangeTierModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.tier}')" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text);padding:2px 6px;border-radius:4px;font-size:.65rem;cursor:pointer;font-weight:600;">Ubah</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="badge ${d.tier.toLowerCase()}" style="font-weight:700;">${d.tier} • ${cycleLabel}</span>
+            <button onclick="openChangeTierModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.tier}', '${d.billingCycle || 'MONTHLY'}')" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text);padding:3px 8px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;">Ubah Paket</button>
           </div>
           <span class="badge ${d.status === 'ACTIVE' ? 'active' : 'error'}">${d.status}</span>
         </div>
@@ -1627,16 +1784,16 @@ function renderTenantCardHTML(d) {
 
       <div class="tenant-metrics">
         <div class="tenant-metric">
-          <div class="tm-value" style="color:var(--green)">${fmt(d.activeCro)}</div>
+          <div class="tm-value" style="color:var(--green)">${fmt(d.activeCro)} <span style="font-size:0.75rem;color:var(--text-3)">/ ${d.maxCro}</span></div>
           <div class="tm-label">CRO Aktif</div>
         </div>
         <div class="tenant-metric">
-          <div class="tm-value" style="color:var(--blue)">${fmt(d.siswaAktif)}</div>
-          <div class="tm-label">Siswa/Periode</div>
+          <div class="tm-value" style="color:var(--blue)">${fmt(usedSiswa)} <span style="font-size:0.75rem;color:var(--text-3)">/ ${fmt(limitSiswa)}</span></div>
+          <div class="tm-label">Siswa Terpakai</div>
         </div>
         <div class="tenant-metric">
-          <div class="tm-value" style="color:var(--purple)">${fmt(d.sekolahAktif)}</div>
-          <div class="tm-label">Sekolah/Periode</div>
+          <div class="tm-value" style="color:var(--purple)">${fmt(usedSekolah)} <span style="font-size:0.75rem;color:var(--text-3)">/ ${fmt(limitSekolah)}</span></div>
+          <div class="tm-label">Sekolah Terpakai</div>
         </div>
         <div class="tenant-metric">
           <div class="tm-value" style="color:var(--amber)">${fmt(d.activeTemplates)}</div>
@@ -1644,30 +1801,56 @@ function renderTenantCardHTML(d) {
         </div>
       </div>
 
+      <!-- Quota Bars -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+        <div class="cro-bar-wrap" style="margin-top:0;">
+          <div class="cro-bar-label">
+            <span>👥 Pemakaian Siswa</span>
+            <span>${fmt(usedSiswa)} / ${fmt(limitSiswa)} (${siswaPercent}%)</span>
+          </div>
+          <div class="cro-bar-track">
+            <div class="cro-bar-fill" style="width:${siswaPercent}%;background:${siswaPercent >= 90 ? 'var(--red)' : (siswaPercent >= 75 ? 'var(--amber)' : 'var(--blue)')};"></div>
+          </div>
+        </div>
+
+        <div class="cro-bar-wrap" style="margin-top:0;">
+          <div class="cro-bar-label">
+            <span>🏫 Pemakaian Sekolah</span>
+            <span>${fmt(usedSekolah)} / ${fmt(limitSekolah)} (${sekolahPercent}%)</span>
+          </div>
+          <div class="cro-bar-track">
+            <div class="cro-bar-fill" style="width:${sekolahPercent}%;background:${sekolahPercent >= 90 ? 'var(--red)' : (sekolahPercent >= 75 ? 'var(--amber)' : 'var(--purple)')};"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="cro-bar-wrap">
         <div class="cro-bar-label">
-          <span>Penggunaan CRO</span>
+          <span>🎯 Kuota Akun CRO</span>
           <div style="display:flex;align-items:center;gap:12px;">
             <button onclick="openAddonModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', ${d.maxCro})" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text);padding:2px 8px;border-radius:12px;font-size:.65rem;cursor:pointer;font-weight:700;">+ Tambah Seat</button>
             <span>${d.activeCro} / ${d.maxCro} (${croPercent}%)</span>
           </div>
         </div>
         <div class="cro-bar-track">
-          <div class="cro-bar-fill" style="width:${Math.min(croPercent,100)}%"></div>
+          <div class="cro-bar-fill" style="width:${Math.min(croPercent,100)}%;background:${croPercent >= 90 ? 'var(--amber)' : 'var(--green)'};"></div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px;">
+      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;margin-top:20px;">
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
-          <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Periode Aktif</div>
-          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.activePeriod || '-'}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div style="font-size:.7rem;color:var(--text-3);">Masa Aktif &amp; Jatuh Tempo</div>
+            <div style="font-size:.75rem;">${expiryText}</div>
+          </div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--text)">${periodEndFormatted}</div>
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <div style="font-size:.7rem;color:var(--text-3);">WhatsApp Phone ID</div>
             <button onclick="openChangeWhatsappModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.whatsappPhoneId || ''}')" style="background:transparent;border:none;color:var(--blue);font-size:.65rem;cursor:pointer;text-decoration:underline;">Ubah</button>
           </div>
-          <div style="font-size:.85rem;font-weight:700;color:var(--green)">${d.whatsappPhoneId || 'Belum diset'}</div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace;">${d.whatsappPhoneId || 'Belum diset'}</div>
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
           <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Pesan Masuk Terakhir</div>
@@ -1945,6 +2128,9 @@ function initApp() {
   // Cek antrean pending closed beta untuk badge
   checkPendingBetaCount();
 
+  // Cek invoice pending untuk badge sidebar
+  checkPendingInvoicesCount();
+
   // Check session restored
   console.log('[Nexa OS] Command Centre initialized.');
 }
@@ -2076,15 +2262,56 @@ async function submitAddonCro() {
 }
 
 // ── CHANGE TIER PROVISIONING ───────────────────────────────────
-function openChangeTierModal(tenantId, brandName, currentTier) {
+function openChangeTierModal(tenantId, brandName, currentTier, currentCycle) {
   document.getElementById('tier-tenantid').value = tenantId;
   document.getElementById('tier-brand').value = brandName;
   
   const capTier = currentTier.charAt(0).toUpperCase() + currentTier.slice(1).toLowerCase();
   document.getElementById('tier-select').value = capTier;
+  document.getElementById('tier-cycle-select').value = (currentCycle || 'MONTHLY').toUpperCase();
+  document.getElementById('tier-reset-dates').checked = true;
   
+  updateTierModalPreview();
   document.getElementById('modal-change-tier').classList.add('active');
   document.getElementById('tier-error').textContent = '';
+}
+
+function updateTierModalPreview() {
+  const tier = (document.getElementById('tier-select').value || 'Free').toUpperCase();
+  const cycle = (document.getElementById('tier-cycle-select').value || 'MONTHLY').toUpperCase();
+  const previewBox = document.getElementById('tier-preview-box');
+  if (!previewBox) return;
+
+  const matrix = {
+    FREE: {
+      MONTHLY: { price: 'Gratis (Trial)', siswa: '300 / 3 bln', sekolah: '10 / 3 bln', cro: '1 Akun CRO', admin: '1 Adm, 1 Mgr, 1 Chief' },
+      YEARLY:  { price: 'Gratis (Trial)', siswa: '300 / 3 bln', sekolah: '10 / 3 bln', cro: '1 Akun CRO', admin: '1 Adm, 1 Mgr, 1 Chief' },
+    },
+    PRO: {
+      MONTHLY: { price: 'Rp 500.000 / bln', siswa: '1.000 / bln', sekolah: '20 / bln', cro: '2 Akun CRO', admin: '1 Adm, 1 Mgr, 1 Chief' },
+      YEARLY:  { price: 'Rp 5.000.000 / thn (Hemat 2 bln)', siswa: '12.000 / thn', sekolah: '240 / thn', cro: '2 Akun CRO', admin: '1 Adm, 1 Mgr, 1 Chief' },
+    },
+    BUSINESS: {
+      MONTHLY: { price: 'Rp 1.500.000 / bln', siswa: '2.500 / bln', sekolah: '41 / bln', cro: '10 Akun CRO', admin: '1 Adm, 1 Mgr, 3 Chief' },
+      YEARLY:  { price: 'Rp 15.000.000 / thn (Hemat Rp 3jt)', siswa: '30.000 / thn', sekolah: '500 / thn', cro: '10 Akun CRO', admin: '1 Adm, 1 Mgr, 3 Chief' },
+    },
+    ENTERPRISE: {
+      MONTHLY: { price: 'Rp 4.000.000 / bln', siswa: '8.333 / bln', sekolah: '166 / bln', cro: '30 Akun CRO', admin: '1 Adm, 3 Mgr, 5 Chief' },
+      YEARLY:  { price: 'Rp 40.000.000 / thn (Hemat Rp 8jt)', siswa: '100.000 / thn', sekolah: '2.000 / thn', cro: '30 Akun CRO', admin: '1 Adm, 3 Mgr, 5 Chief' },
+    },
+  };
+
+  const p = matrix[tier]?.[cycle] || matrix.FREE.MONTHLY;
+  previewBox.innerHTML = `
+    <div style="font-weight:700;color:var(--green);margin-bottom:6px;">✨ Plafon Fasilitas &amp; Kuota Baru:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;color:var(--text-2);font-size:0.75rem;">
+      <div>• Biaya: <strong style="color:var(--text);">${p.price}</strong></div>
+      <div>• Tim: <strong style="color:var(--text);">${p.cro}</strong></div>
+      <div>• Kuota Siswa: <strong style="color:var(--blue);">${p.siswa}</strong></div>
+      <div>• Kuota Sekolah: <strong style="color:var(--purple);">${p.sekolah}</strong></div>
+      <div style="grid-column:1/-1;">• Struktur: <strong style="color:var(--text);">${p.admin}</strong></div>
+    </div>
+  `;
 }
 
 function closeChangeTierModal() {
@@ -2094,6 +2321,8 @@ function closeChangeTierModal() {
 async function submitChangeTier() {
   const tenantId = document.getElementById('tier-tenantid').value;
   const tier = document.getElementById('tier-select').value;
+  const billingCycle = document.getElementById('tier-cycle-select').value;
+  const resetDates = document.getElementById('tier-reset-dates').checked;
   const errEl = document.getElementById('tier-error');
   
   if (!tier) {
@@ -2114,7 +2343,7 @@ async function submitChangeTier() {
     const res = await fetch(url.toString(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId, tier })
+      body: JSON.stringify({ tenantId, tier, billingCycle, resetDates })
     });
     
     const json = await res.json();
@@ -2514,6 +2743,225 @@ async function changeBetaStatus(id, newStatus, brandName) {
     loadBetaApplications(true);
   } catch (e) {
     alert('Gagal mengubah status: ' + e.message);
+  }
+}
+
+// ── INVOICES & BILLING MANAGEMENT (SAAS MONETISASI) ──────────
+let BILLING_DATA = [];
+
+async function loadBillingInvoices(force) {
+  if (!force && STATE.loaded.billing) return;
+  const btn = document.getElementById('btn-refresh-billing');
+  btn && btn.classList.add('spinning');
+  const tbody = document.getElementById('billing-table-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-3); padding:24px;">⏳ Memuat riwayat faktur Midtrans...</td></tr>';
+  }
+
+  try {
+    const res = await apiCall('billing/invoices');
+    const stats = res.stats || {};
+    BILLING_DATA = res.invoices || [];
+
+    // Update KPI Cards
+    const revEl = document.getElementById('billing-stat-revenue');
+    if (revEl) revEl.textContent = 'Rp ' + Number(stats.totalRevenue || 0).toLocaleString('id-ID');
+    const unpaidEl = document.getElementById('billing-stat-unpaid');
+    if (unpaidEl) unpaidEl.textContent = fmt(stats.unpaidCount || 0);
+    const tenantEl = document.getElementById('billing-stat-tenants');
+    if (tenantEl) tenantEl.textContent = fmt(stats.paidTenantsCount || 0);
+    const totalEl = document.getElementById('billing-stat-total');
+    if (totalEl) totalEl.textContent = fmt(stats.totalInvoices || 0);
+
+    // Update Counter Badges
+    const unpaidBadge = document.getElementById('badge-unpaid-invoices');
+    const unpaidCountEl = document.getElementById('billing-count-unpaid');
+    if (unpaidCountEl) unpaidCountEl.textContent = stats.unpaidCount || 0;
+    if (unpaidBadge) {
+      if (stats.unpaidCount > 0) {
+        unpaidBadge.style.display = 'inline-block';
+        unpaidBadge.textContent = stats.unpaidCount;
+      } else {
+        unpaidBadge.style.display = 'none';
+      }
+    }
+
+    renderBillingTable(BILLING_DATA);
+    STATE.loaded.billing = true;
+  } catch (e) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--red); padding:24px;">Gagal memuat faktur: ${e.message}</td></tr>`;
+    }
+  } finally {
+    btn && btn.classList.remove('spinning');
+  }
+}
+
+function filterBillingTable(status, btnEl) {
+  document.querySelectorAll('.beta-filter-btn[id^="billing-filter-"]').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+
+  if (status === 'ALL') {
+    renderBillingTable(BILLING_DATA);
+  } else {
+    const filtered = BILLING_DATA.filter(i => (i.status || '').toUpperCase() === status);
+    renderBillingTable(filtered);
+  }
+}
+
+function renderBillingTable(invoices) {
+  const tbody = document.getElementById('billing-table-body');
+  if (!tbody) return;
+
+  if (invoices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-3); padding:28px;">Tidak ada faktur dengan kriteria filter ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = invoices.map(inv => {
+    const status = (inv.status || 'UNPAID').toUpperCase();
+    let badgeClass = 'warn';
+    if (status === 'PAID') badgeClass = 'active';
+    else if (status === 'CANCELLED' || status === 'OVERDUE') badgeClass = 'error';
+
+    const tierBadge = inv.plan_tier 
+      ? `<span class="badge ${inv.plan_tier.toLowerCase()}" style="font-size:0.65rem;padding:2px 6px;">${inv.plan_tier}</span>` 
+      : '<span style="color:var(--text-3)">—</span>';
+    const cycleText = inv.billing_cycle === 'YEARLY' ? 'Tahunan (365h)' : 'Bulanan (30h)';
+    const amountFmt = 'Rp ' + Number(inv.amount || 0).toLocaleString('id-ID');
+    const createdDate = inv.created_at ? new Date(inv.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const paymentDate = inv.payment_date ? new Date(inv.payment_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+    const paymentType = inv.payment_type || (inv.snap_token ? 'Midtrans Snap' : '—');
+
+    let actionBtns = `
+      <button onclick="openInvoiceDetail('${inv.invoice_id}')" style="background:var(--bg-3);border:1px solid var(--border-h);color:var(--text-2);padding:4px 8px;border-radius:6px;font-size:0.75rem;cursor:pointer;">Detail</button>
+    `;
+
+    if (status === 'UNPAID') {
+      actionBtns = `
+        <button onclick="markInvoicePaid('${inv.invoice_id}', '${(inv.brand_name || inv.tenant_id).replace(/'/g, "\\'")}', '${amountFmt}')" style="background:linear-gradient(135deg, var(--green), #00b377);border:none;color:#000;font-weight:700;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;margin-right:6px;">✓ Tandai Lunas</button>
+        ${actionBtns}
+      `;
+    }
+
+    return `
+      <tr>
+        <td>
+          <div style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:0.82rem;color:var(--text);">${inv.invoice_id}</div>
+          <div style="font-size:0.7rem;color:var(--text-3);margin-top:2px;">ID: ${inv.tenant_id}</div>
+        </td>
+        <td>
+          <div style="font-weight:700;color:var(--text);font-size:0.85rem;">${inv.brand_name || inv.tenant_id}</div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${tierBadge}
+            <span style="font-size:0.75rem;color:var(--text-2);">${cycleText}</span>
+          </div>
+        </td>
+        <td style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--green);">${amountFmt}</td>
+        <td><span class="badge ${badgeClass}">${status}</span></td>
+        <td>
+          <div style="font-size:0.8rem;color:var(--text-2);">${paymentType}</div>
+          ${paymentDate ? `<div style="font-size:0.7rem;color:var(--text-3);">Dibayar: ${paymentDate}</div>` : ''}
+        </td>
+        <td style="font-size:0.78rem;color:var(--text-3);">${createdDate}</td>
+        <td style="text-align:right;">${actionBtns}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function markInvoicePaid(invoiceId, brandName, amountFmt) {
+  if (!confirm(`Konfirmasi Pelunasan Manual Faktur:\n\nTandai faktur "${invoiceId}" milik ${brandName} sebesar ${amountFmt} sebagai LUNAS (PAID)?\n\nSistem akan otomatis memperbarui kuota tenant dan mengunci durasi masa aktif sesuai ketentuan modul.`)) {
+    return;
+  }
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/billing/invoices/' + invoiceId + '/mark-paid');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentType: 'MANUAL_SUPERADMIN' }),
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menandai faktur lunas');
+
+    alert(`🎉 SUKSES!\n\nFaktur ${invoiceId} berhasil ditandai LUNAS.\nPaket tenant ${brandName} telah berhasil di-upgrade secara otomatis.`);
+    loadBillingInvoices(true);
+    STATE.loaded.tenants = false; // invalidate tenant cache so fresh limits are shown
+  } catch (e) {
+    alert('Gagal menandai lunas: ' + e.message);
+  }
+}
+
+function openInvoiceDetail(invoiceId) {
+  const inv = BILLING_DATA.find(i => i.invoice_id === invoiceId);
+  if (!inv) return;
+
+  const modalBody = document.getElementById('invoice-detail-body');
+  const amountFmt = 'Rp ' + Number(inv.amount || 0).toLocaleString('id-ID');
+  const createdDate = inv.created_at ? new Date(inv.created_at).toLocaleString('id-ID') : '—';
+  const paymentDate = inv.payment_date ? new Date(inv.payment_date).toLocaleString('id-ID') : 'Belum dibayar';
+  const periodStart = inv.billing_period_start ? new Date(inv.billing_period_start).toLocaleDateString('id-ID') : '—';
+  const periodEnd = inv.billing_period_end ? new Date(inv.billing_period_end).toLocaleDateString('id-ID') : '—';
+  const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('id-ID') : '—';
+
+  modalBody.innerHTML = `
+    <div style="background:var(--bg-3);padding:14px;border-radius:var(--radius-sm);margin-bottom:14px;border:1px solid var(--border-h);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:0.75rem;color:var(--text-3);text-transform:uppercase;">Nomor Faktur</div>
+          <div style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:1rem;color:var(--green);">${inv.invoice_id}</div>
+        </div>
+        <span class="badge ${inv.status === 'PAID' ? 'active' : (inv.status === 'UNPAID' ? 'warn' : 'error')}">${inv.status}</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;font-size:0.82rem;">
+      <div><span style="color:var(--text-3);">Tenant:</span> <strong>${inv.brand_name || inv.tenant_id}</strong> (${inv.tenant_id})</div>
+      <div><span style="color:var(--text-3);">Paket Langganan:</span> <strong>${inv.plan_tier || 'PRO'} (${inv.billing_cycle || 'MONTHLY'})</strong></div>
+      <div><span style="color:var(--text-3);">Total Tagihan:</span> <strong style="color:var(--green);">${amountFmt}</strong></div>
+      <div><span style="color:var(--text-3);">Metode Bayar:</span> <strong>${inv.payment_type || (inv.snap_token ? 'Midtrans' : '—')}</strong></div>
+      <div><span style="color:var(--text-3);">Masa Periode:</span> ${periodStart} s/d ${periodEnd}</div>
+      <div><span style="color:var(--text-3);">Jatuh Tempo:</span> ${dueDate}</div>
+      <div><span style="color:var(--text-3);">Waktu Dibuat:</span> ${createdDate}</div>
+      <div><span style="color:var(--text-3);">Waktu Pelunasan:</span> ${paymentDate}</div>
+    </div>
+
+    ${inv.snap_token ? `
+      <div style="background:var(--bg-4);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:0.75rem;margin-top:10px;">
+        <div style="color:var(--text-3);margin-bottom:4px;">Midtrans Snap Token:</div>
+        <div style="font-family:'JetBrains Mono',monospace;color:var(--text-2);word-break:break-all;">${inv.snap_token}</div>
+      </div>
+    ` : ''}
+  `;
+
+  document.getElementById('modal-invoice-detail').classList.add('active');
+}
+
+function closeInvoiceDetailModal() {
+  document.getElementById('modal-invoice-detail').classList.remove('active');
+}
+
+async function checkPendingInvoicesCount() {
+  try {
+    const res = await apiCall('billing/invoices');
+    const unpaid = res.stats?.unpaidCount || 0;
+    const badge = document.getElementById('badge-unpaid-invoices');
+    if (badge) {
+      if (unpaid > 0) {
+        badge.style.display = 'inline-block';
+        badge.textContent = unpaid;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    // Ignore silent check
   }
 }
 
