@@ -757,31 +757,90 @@
   </div>
 </div>
 
-<!-- ── CHANGE WHATSAPP MODAL ── -->
+<!-- ── CHANGE WHATSAPP MODAL (ASSISTED PROVISIONING & GRAPH API) ── -->
 <div id="modal-change-whatsapp" class="modal-overlay">
-  <div class="modal-box" style="max-width: 400px;">
+  <div class="modal-box" style="max-width: 500px;">
     <div class="modal-header">
-      <div class="modal-title">Ubah WhatsApp Phone ID</div>
+      <div class="modal-title">Provisi WhatsApp Klien (WABA Pilot Derma)</div>
       <button class="btn-close" onclick="closeChangeWhatsappModal()">&times;</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="wa-tenantid" />
       
-      <div class="form-group">
-        <label style="font-size:.8rem;color:var(--text-2);margin-bottom:6px;display:block;">Tenant</label>
-        <input type="text" id="wa-brand" disabled style="width:100%; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-3); color:var(--text);" />
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-size:.8rem;color:var(--text-2);margin-bottom:4px;display:block;">Nama Tenant</label>
+        <input type="text" id="wa-brand" disabled style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-3); color:var(--text); font-weight:600;" />
       </div>
-      
-      <div class="form-group">
-        <label style="font-size:.8rem;color:var(--text-2);margin-bottom:6px;display:block;">WhatsApp Phone ID</label>
-        <input type="text" id="wa-phoneid" placeholder="Masukkan Phone ID (Contoh: 1202481526280919)" style="width:100%; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-2); color:var(--text);" />
+
+      <!-- Data Permohonan Tenant -->
+      <div id="wa-request-card" style="display:none; margin-bottom:14px; padding:12px; border-radius:var(--radius-sm); background:var(--bg-3); border:1px solid var(--border); font-size:0.75rem;">
+        <div style="font-weight:700; color:var(--text); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+          <span>📋 Permohonan dari Tenant:</span>
+          <span id="wa-info-status" style="padding:2px 8px; border-radius:4px; font-weight:700;">-</span>
+        </div>
+        <div style="margin-bottom:3px;">Nomor HP: <strong id="wa-info-number" style="color:var(--green); font-family:'JetBrains Mono',monospace; font-size:0.9rem;">-</strong></div>
+        <div style="margin-bottom:3px;">Display Name: <strong id="wa-info-display" style="color:var(--text);">-</strong></div>
+        <div>Kategori: <span id="wa-info-category" style="color:var(--text-2);">-</span></div>
       </div>
+
+      <!-- 🔐 CATATAN PENTING PIN 2FA (MUDAH DILIHAT & DIINGAT) -->
+      <div style="padding:10px 12px; border-radius:var(--radius-sm); background:rgba(34, 197, 94, 0.08); border:1px solid rgba(34, 197, 94, 0.25); font-size:0.75rem; color:var(--text); margin-bottom:14px; line-height:1.4;">
+        <div style="font-weight:700; color:var(--green); display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+          <span>🔐</span> CATATAN KHUSUS PIN DUA LANGKAH (2FA META):
+        </div>
+        <div>PIN Default Sistem: <strong style="font-family:'JetBrains Mono',monospace; font-size:0.85rem; color:var(--green); background:rgba(0,0,0,0.2); padding:1px 6px; border-radius:4px;">137950</strong></div>
+        <div style="font-size:0.7rem; color:var(--text-2); margin-top:2px;">PIN ini otomatis dipasang Meta saat verifikasi OTP selesai untuk mengaktifkan Cloud API.</div>
+      </div>
+
+      <!-- TAHAP 1: KIRIM SMS OTP (OTOMASI GRAPH API) -->
+      <div id="wa-stage-trigger" style="margin-bottom:14px; padding:14px; border-radius:var(--radius-sm); background:var(--bg-2); border:1px solid var(--border-h);">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--text); margin-bottom:6px;">Langkah 1: Kirim Kode SMS OTP</div>
+        <p style="font-size:0.75rem; color:var(--text-2); margin-bottom:10px; line-height:1.4;">
+          Sistem akan mendaftarkan nomor di atas ke WABA Pilot Derma dan memerintahkan Meta mengirim SMS 6-digit OTP ke ponsel klien.
+        </p>
+        <button id="btn-trigger-otp" onclick="triggerOtpFromSuperadmin()" style="width:100%; background:var(--blue); border:none; color:#fff; padding:10px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.8rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>📲</span> Kirim SMS OTP via Meta Graph API
+        </button>
+      </div>
+
+      <!-- TAHAP 2: INPUT 6 DIGIT OTP (SETELAH OTP TERKIRIM) -->
+      <div id="wa-stage-verify" style="display:none; margin-bottom:14px; padding:14px; border-radius:var(--radius-sm); background:rgba(0, 180, 216, 0.08); border:1px solid rgba(0, 180, 216, 0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.8rem; font-weight:700; color:var(--blue);">Langkah 2: Masukkan 6 Digit OTP</span>
+          <button onclick="triggerOtpFromSuperadmin()" id="btn-resend-otp" style="background:transparent; border:none; color:var(--blue); font-size:0.7rem; cursor:pointer; text-decoration:underline;">Kirim Ulang</button>
+        </div>
+        <p style="font-size:0.72rem; color:var(--text-2); margin-bottom:8px;">
+          Hubungi klien untuk meminta 6 digit kode yang masuk via SMS, lalu masukkan di bawah:
+        </p>
+        <input type="text" id="wa-otp-code" maxlength="6" placeholder="• • • • • •" style="width:100%; text-align:center; letter-spacing:0.35em; font-size:1.25rem; font-weight:800; font-family:'JetBrains Mono',monospace; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-1); color:var(--green);" />
+        <button id="btn-verify-otp" onclick="verifyOtpFromSuperadmin()" style="width:100%; margin-top:10px; background:var(--green); border:none; color:#000; padding:10px; border-radius:8px; cursor:pointer; font-weight:800; font-size:0.85rem;">
+          🚀 Verifikasi OTP &amp; Aktifkan Nomor Sekarang
+        </button>
+      </div>
+
+      <!-- ACCORDION CADANGAN: INPUT PHONE ID MANUAL (FALLBACK) -->
+      <details style="margin-top:10px; font-size:0.75rem; color:var(--text-3); border-top:1px dashed var(--border); padding-top:8px;">
+        <summary style="cursor:pointer; font-weight:600; color:var(--text-2); margin-bottom:8px;">⚙️ Opsi Manual (Bypass Phone ID Meta)</summary>
+        <div style="padding:10px; background:var(--bg-3); border-radius:var(--radius-sm); border:1px solid var(--border);">
+          <div class="form-group">
+            <label style="font-size:.72rem;color:var(--text-2);margin-bottom:4px;display:block;">WhatsApp Phone ID (Manual)</label>
+            <input type="text" id="wa-phoneid" placeholder="Contoh: 1202481526280919" style="width:100%; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-2); color:var(--text); font-size:0.8rem; font-family:monospace;" />
+          </div>
+          <div class="form-group" style="margin-top:8px;">
+            <label style="font-size:.72rem;color:var(--text-2);margin-bottom:4px;display:block;">Catatan Manual (Opsional)</label>
+            <input type="text" id="wa-notes" placeholder="Catatan internal" style="width:100%; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--border-h); background:var(--bg-2); color:var(--text); font-size:0.8rem;" />
+          </div>
+          <button id="btn-submit-wa" onclick="submitChangeWhatsapp()" style="margin-top:10px; width:100%; background:var(--bg-4); border:1px solid var(--border-h); color:var(--text); padding:7px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:600;">
+            Simpan Manual Phone ID
+          </button>
+        </div>
+      </details>
 
       <div id="wa-error" style="margin-top:10px; font-size:0.85rem; font-weight:500;"></div>
     </div>
-    <div class="modal-footer" style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
-      <button onclick="closeChangeWhatsappModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 16px; border-radius:8px; cursor:pointer;">Batal</button>
-      <button id="btn-submit-wa" onclick="submitChangeWhatsapp()" style="background:var(--green); border:none; color:#000; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">Simpan</button>
+    <div class="modal-footer" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+      <button id="btn-reject-wa" onclick="rejectWhatsappRequest()" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:var(--red); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600;">Tolak Pengajuan</button>
+      <button onclick="closeChangeWhatsappModal()" style="background:transparent; border:1px solid var(--border-h); color:var(--text); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem;">Tutup</button>
     </div>
   </div>
 </div>
@@ -1847,10 +1906,20 @@ function renderTenantCardHTML(d) {
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <div style="font-size:.7rem;color:var(--text-3);">WhatsApp Phone ID</div>
-            <button onclick="openChangeWhatsappModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.whatsappPhoneId || ''}')" style="background:transparent;border:none;color:var(--blue);font-size:.65rem;cursor:pointer;text-decoration:underline;">Ubah</button>
+            <div style="font-size:.7rem;color:var(--text-3);">WhatsApp (WABA Pilot)</div>
+            <button onclick="openChangeWhatsappModal('${d.tenantId}', '${d.brandName.replace(/'/g, "\\'")}', '${d.whatsappPhoneId || ''}', '${d.whatsappNumber || ''}', '${(d.whatsappDisplayName || d.brandName).replace(/'/g, "\\'")}', '${(d.whatsappBusinessCategory || '').replace(/'/g, "\\'")}', '${d.whatsappStatus}')" style="background:transparent;border:none;color:var(--blue);font-size:.65rem;cursor:pointer;text-decoration:underline;">${d.whatsappStatus === 'PENDING_PROVISIONING' ? '⚡ Verifikasi' : 'Kelola'}</button>
           </div>
-          <div style="font-size:.82rem;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace;">${d.whatsappPhoneId || 'Belum diset'}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${d.whatsappStatus === 'PENDING_PROVISIONING' ? `
+              <span style="font-size:.7rem;background:rgba(251,191,36,0.15);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">⏳ PENDING (+${d.whatsappNumber || '-'})</span>
+            ` : d.whatsappStatus === 'CONNECTED' ? `
+              <span style="font-size:.75rem;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace;">● +${d.whatsappNumber || d.whatsappPhoneId}</span>
+            ` : d.whatsappStatus === 'REJECTED' ? `
+              <span style="font-size:.7rem;background:rgba(239,68,68,0.15);color:var(--red);padding:2px 6px;border-radius:4px;font-weight:700;">✕ Ditolak</span>
+            ` : `
+              <span style="font-size:.75rem;color:var(--text-3);">Belum Diset</span>
+            `}
+          </div>
         </div>
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
           <div style="font-size:.7rem;color:var(--text-3);margin-bottom:4px;">Pesan Masuk Terakhir</div>
@@ -2377,27 +2446,185 @@ async function submitChangeTier() {
   }
 }
 
-// ── CHANGE WHATSAPP PROVISIONING ─────────────────────────────
-function openChangeWhatsappModal(tenantId, brandName, currentWaId) {
+// ── CHANGE WHATSAPP PROVISIONING (ASSISTED WABA PILOT) ─────────
+function openChangeWhatsappModal(tenantId, brandName, currentWaId, requestedNumber, requestedDisplayName, requestedCategory, currentStatus) {
   document.getElementById('wa-tenantid').value = tenantId;
   document.getElementById('wa-brand').value = brandName;
-  document.getElementById('wa-phoneid').value = currentWaId;
+  document.getElementById('wa-phoneid').value = currentWaId || '';
+  document.getElementById('wa-notes').value = '';
+  document.getElementById('wa-error').textContent = '';
+
+  // Reset OTP stages
+  const stageTrigger = document.getElementById('wa-stage-trigger');
+  const stageVerify = document.getElementById('wa-stage-verify');
+  const btnTrigger = document.getElementById('btn-trigger-otp');
+  const btnVerify = document.getElementById('btn-verify-otp');
+  const otpCodeInput = document.getElementById('wa-otp-code');
+
+  if (stageTrigger) stageTrigger.style.display = 'block';
+  if (stageVerify) stageVerify.style.display = 'none';
+  if (otpCodeInput) otpCodeInput.value = '';
+  if (btnTrigger) {
+    btnTrigger.disabled = false;
+    btnTrigger.innerHTML = '<span>📲</span> Kirim SMS OTP via Meta Graph API';
+  }
+  if (btnVerify) {
+    btnVerify.disabled = false;
+    btnVerify.textContent = '🚀 Verifikasi OTP & Aktifkan Nomor Sekarang';
+  }
+
+  const requestCard = document.getElementById('wa-request-card');
+  const btnReject = document.getElementById('btn-reject-wa');
+
+  if (requestedNumber || requestedDisplayName) {
+    requestCard.style.display = 'block';
+    document.getElementById('wa-info-number').textContent = requestedNumber ? '+' + requestedNumber : '-';
+    document.getElementById('wa-info-display').textContent = requestedDisplayName || brandName;
+    document.getElementById('wa-info-category').textContent = requestedCategory || '-';
+
+    const statusEl = document.getElementById('wa-info-status');
+    if (currentStatus === 'PENDING_PROVISIONING') {
+      statusEl.textContent = 'Menunggu Aktivasi';
+      statusEl.style.background = 'rgba(251,191,36,0.2)';
+      statusEl.style.color = 'var(--amber)';
+    } else if (currentStatus === 'CONNECTED') {
+      statusEl.textContent = 'Aktif (Connected)';
+      statusEl.style.background = 'rgba(34,197,94,0.2)';
+      statusEl.style.color = 'var(--green)';
+    } else if (currentStatus === 'REJECTED') {
+      statusEl.textContent = 'Ditolak';
+      statusEl.style.background = 'rgba(239,68,68,0.2)';
+      statusEl.style.color = 'var(--red)';
+    } else {
+      statusEl.textContent = 'Belum Dikonfigurasi';
+      statusEl.style.background = 'var(--bg-4)';
+      statusEl.style.color = 'var(--text-3)';
+    }
+  } else {
+    requestCard.style.display = 'none';
+  }
+
+  if (currentStatus === 'PENDING_PROVISIONING') {
+    btnReject.style.display = 'inline-block';
+  } else {
+    btnReject.style.display = 'none';
+  }
   
   document.getElementById('modal-change-whatsapp').classList.add('active');
-  document.getElementById('wa-error').textContent = '';
 }
 
 function closeChangeWhatsappModal() {
   document.getElementById('modal-change-whatsapp').classList.remove('active');
 }
 
+async function triggerOtpFromSuperadmin() {
+  const tenantId = document.getElementById('wa-tenantid').value;
+  const btn = document.getElementById('btn-trigger-otp');
+  const btnResend = document.getElementById('btn-resend-otp');
+  const errEl = document.getElementById('wa-error');
+  errEl.textContent = '';
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Memerintahkan Meta mengirim SMS OTP...';
+  }
+  if (btnResend) btnResend.disabled = true;
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/whatsapp-requests/' + encodeURIComponent(tenantId) + '/trigger-otp');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') {
+      throw new Error(json.message || 'Gagal mengirim OTP via Meta');
+    }
+
+    // Tampilkan Tahap 2 (Input OTP)
+    const stageVerify = document.getElementById('wa-stage-verify');
+    if (stageVerify) stageVerify.style.display = 'block';
+
+    const otpInput = document.getElementById('wa-otp-code');
+    if (otpInput) {
+      otpInput.value = '';
+      otpInput.focus();
+    }
+
+    if (json.data && json.data.phoneId) {
+      document.getElementById('wa-phoneid').value = json.data.phoneId;
+    }
+
+    if (btn) {
+      btn.innerHTML = '<span>✅</span> SMS OTP Terkirim ke Klien!';
+    }
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Gagal trigger OTP: ' + e.message;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>📲</span> Coba Kirim SMS OTP Lagi';
+    }
+  } finally {
+    if (btnResend) btnResend.disabled = false;
+  }
+}
+
+async function verifyOtpFromSuperadmin() {
+  const tenantId = document.getElementById('wa-tenantid').value;
+  const otpCode = document.getElementById('wa-otp-code').value.trim();
+  const btn = document.getElementById('btn-verify-otp');
+  const errEl = document.getElementById('wa-error');
+  errEl.textContent = '';
+
+  if (!otpCode || otpCode.length < 6) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Masukkan 6 digit kode OTP yang diterima ponsel klien.';
+    const otpInput = document.getElementById('wa-otp-code');
+    if (otpInput) otpInput.focus();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Memverifikasi OTP & Mendaftarkan ke Cloud API...';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/whatsapp-requests/' + encodeURIComponent(tenantId) + '/verify-otp');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: otpCode })
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') {
+      throw new Error(json.message || 'Verifikasi OTP gagal');
+    }
+
+    closeChangeWhatsappModal();
+    loadTenant(true);
+    alert('🎉 SUKSES! Nomor WhatsApp berhasil diverifikasi dan terdaftar aktif di WABA Pilot Derma! PIN 2FA (137950) telah otomatis dipasang.');
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Verifikasi Gagal: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '🚀 Verifikasi OTP & Aktifkan Nomor Sekarang';
+  }
+}
+
 async function submitChangeWhatsapp() {
   const tenantId = document.getElementById('wa-tenantid').value;
   const whatsappPhoneId = document.getElementById('wa-phoneid').value.trim();
+  const notes = document.getElementById('wa-notes').value.trim();
   const errEl = document.getElementById('wa-error');
   
   if (!whatsappPhoneId) {
-    errEl.textContent = 'Phone ID tidak boleh kosong.';
+    errEl.textContent = 'WhatsApp Phone ID dari Meta tidak boleh kosong.';
     errEl.style.color = 'var(--red)';
     return;
   }
@@ -2408,27 +2635,62 @@ async function submitChangeWhatsapp() {
   errEl.textContent = '';
 
   try {
-    const url = new URL(NEXA_CONFIG.API_URL + '/tenant/whatsapp');
+    const url = new URL(NEXA_CONFIG.API_URL + '/whatsapp-requests/' + encodeURIComponent(tenantId) + '/approve');
     url.searchParams.set('adminKey', STATE.adminKey);
     
     const res = await fetch(url.toString(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId, whatsappPhoneId })
+      body: JSON.stringify({ whatsappPhoneId, notes })
     });
     
     const json = await res.json();
-    if (json.status !== 'ok') throw new Error(json.message || 'Gagal mengubah WhatsApp Phone ID');
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal mengaktifkan WhatsApp');
     
     closeChangeWhatsappModal();
     loadTenant(true);
-    alert('✅ WhatsApp Phone ID berhasil diubah!');
+    alert('✅ Nomor WhatsApp berhasil dihubungkan ke tenant via WABA Pilot!');
   } catch (e) {
     errEl.style.color = 'var(--red)';
     errEl.textContent = 'Error: ' + e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Simpan';
+    btn.textContent = 'Setujui & Aktifkan';
+  }
+}
+
+async function rejectWhatsappRequest() {
+  const tenantId = document.getElementById('wa-tenantid').value;
+  const reason = prompt('Masukkan alasan penolakan untuk tenant:', 'Data nomor tidak sesuai atau nomor tidak aktif.');
+  if (reason === null) return; // Batal klik
+
+  const errEl = document.getElementById('wa-error');
+  const btn = document.getElementById('btn-reject-wa');
+  btn.disabled = true;
+  btn.textContent = 'Memproses...';
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/whatsapp-requests/' + encodeURIComponent(tenantId) + '/reject');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.message || 'Gagal menolak permohonan');
+
+    closeChangeWhatsappModal();
+    loadTenant(true);
+    alert('Permohonan nomor WhatsApp telah ditolak.');
+  } catch (e) {
+    errEl.style.color = 'var(--red)';
+    errEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Tolak';
   }
 }
 
