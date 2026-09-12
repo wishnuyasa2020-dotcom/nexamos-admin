@@ -1857,6 +1857,22 @@ function renderTenantCardHTML(d) {
           <div style="font-size:.75rem;font-weight:600;color:var(--text-2)">${timeAgo(d.lastIncomingMsg)}</div>
         </div>
       </div>
+
+      ${(d.tenantId === 'crm-demo' || d.tenantId.toLowerCase().includes('demo')) ? `
+        <div style="margin-top:16px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.22);border-radius:var(--radius-sm);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--amber);display:flex;align-items:center;gap:6px;">
+              <span>🔄</span> Auto-Reset Sandbox Aktif
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-2);margin-top:2px;">
+              Data operasional CRM dibersihkan otomatis setiap <strong>Minggu 21:00 WIB</strong> (User &amp; Periode dipertahankan).
+            </div>
+          </div>
+          <button id="btn-reset-demo-${d.tenantId}" onclick="triggerResetDemo('${d.tenantId}')" style="background:var(--amber);border:none;color:#000;padding:6px 14px;border-radius:6px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            <span>🧹</span> Reset Data Sekarang
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -2413,6 +2429,50 @@ async function submitChangeWhatsapp() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Simpan';
+  }
+}
+
+// ── DEMO SANDBOX MANUAL RESET (SUPERADMIN) ────────────────────
+async function triggerResetDemo(tenantId) {
+  const confirmed = confirm(`⚠️ KONFIRMASI RESET DATABASE DEMO:\n\nApakah Anda yakin ingin MENGOSONGKAN (reset kembali ke 0) seluruh data operasional untuk tenant demo '${tenantId}' sekarang?\n\n• Data siswa, sekolah, chat, broadcast, event logs akan dibersihkan ke 0 baris.\n• Tabel login users dan marketing period TIDAK akan dihapus.\n\nKlik OK untuk melanjutkan.`);
+  if (!confirmed) return;
+
+  const btn = document.getElementById(`btn-reset-demo-${tenantId}`);
+  let origText = '';
+  if (btn) {
+    origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Mereset...';
+  }
+
+  try {
+    const url = new URL(NEXA_CONFIG.API_URL + '/demo/reset');
+    url.searchParams.set('adminKey', STATE.adminKey);
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId })
+    });
+
+    const json = await res.json();
+    if (json.status !== 'ok') {
+      throw new Error(json.message || 'Gagal mereset database demo');
+    }
+
+    const resetCnt = json.data?.totalTablesReset || 0;
+    alert(`✅ SUKSES RESET DATABASE DEMO!\n\nDatabase akun demo '${tenantId}' telah dikembalikan ke kondisi awal.\nTotal ${resetCnt} tabel operasional telah dikosongkan ke 0 baris.\nCounter kuota siswa & sekolah diset ke 0.`);
+    
+    // Refresh tenant list and overview
+    loadTenant(true);
+    if (STATE.loaded.overview) loadOverview(true);
+  } catch (err) {
+    alert(`❌ Gagal reset demo: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
   }
 }
 
