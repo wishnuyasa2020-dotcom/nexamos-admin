@@ -7,11 +7,11 @@
   <meta name="description" content="Nexa OS Admin Command Centre — monitoring dan kontrol semua tenant.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=3">
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png?v=3">
+  <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png?v=3">
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=3">
+  <link rel="shortcut icon" href="./favicon.ico?v=3">
   <meta name="theme-color" content="#070c14">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -80,10 +80,10 @@
     }
     .login-logo {
       width: 64px; height: 64px;
-      background: linear-gradient(135deg, var(--green), var(--blue));
+      background: rgba(0, 214, 143, 0.08);
+      border: 1px solid rgba(0, 214, 143, 0.22);
       border-radius: 16px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 28px;
       margin: 0 auto 20px;
       box-shadow: 0 0 30px var(--green-glow);
     }
@@ -147,10 +147,10 @@
     }
     .logo-icon {
       width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--green), var(--blue));
+      background: rgba(0, 214, 143, 0.08);
+      border: 1px solid rgba(0, 214, 143, 0.22);
       border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
       box-shadow: 0 0 16px var(--green-glow);
       flex-shrink: 0;
     }
@@ -562,7 +562,7 @@
 <!-- ── LOGIN OVERLAY ──────────────────────────────────────── -->
 <div id="login-overlay">
   <div class="login-box">
-    <div class="login-logo">⚡</div>
+    <div class="login-logo"><img src="./favicon.svg?v=3" alt="Nexa OS Logo" width="42" height="42" style="display:block;"></div>
     <h1>Nexa OS</h1>
     <p>Command Centre — Akses terbatas untuk Nexa Admin</p>
     <div style="position: relative; margin-bottom: 16px;">
@@ -922,7 +922,7 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-icon">⚡</div>
+      <div class="logo-icon"><img src="./favicon.svg?v=3" alt="Nexa OS Logo" width="22" height="22" style="display:block;"></div>
       <div class="logo-text">
         <div class="logo-name">Nexa OS</div>
         <div class="logo-sub">Command Centre</div>
